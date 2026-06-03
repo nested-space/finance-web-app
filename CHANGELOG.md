@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Application runtime: app factory with a per-request SQLite connection, schema bootstrap and a forward-only migration runner, and request logging that records outcomes (method, path, status, duration) but never payloads; landing page and 404 handler.
 - Test pyramid covering the domain value objects, form validation, service use cases, the repository contract, the SQLite repository, the migration runner, and the web routes.
 - Mandatory brand design system in `docs/DESIGN.md` (decision D-010): Slate Navy palette, sharp edges / 1px borders, panel + 20-section grid, white space, accessible colour combinations, and the secondary palette reserved for charts only. The frontend (`web/static/css/app.css` + templates) implements it — Slate Navy nav and tint waterfall — with the **Inter** typeface self-hosted under `web/static/fonts/` (no CDN).
+- **C2 — Expenses, Commitments, and Income resources** (tables only), each a vertical slice off the generic `SqlModelRepository` base with its own Alembic migration:
+  - Expenses: explicit date, optional description, the 7-category set, and a stricter `in_month` date predicate (not `covers_month`).
+  - Commitments: the 5-category / 5-recurrence subsets (single-sourced so the form choices and table CHECK constraints can't drift), `effective_stop` computed from `length` + `length_unit` (clamped month/year math), listing grouped by recurrence, and a first-party JS toggle that hides the length fields for "Once Only".
+  - Income: all six recurrences (incl. Quarterly), optional open-ended `effective_stop`, and the `income_exception` child table (FK `ON DELETE CASCADE`, `add_exception`/`list_exceptions` repo methods — persistence only, no UI; see D-011).
+  - The `Recurrence` value object and `Recurrence.fires_on` firing predicate (`domain/recurrence.py`) with `domain/calendar_math.py` (day-clamped month/year arithmetic), fully unit-tested ahead of the C3 finance model.
 
 ### Changed
 
