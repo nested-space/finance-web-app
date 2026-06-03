@@ -10,6 +10,7 @@
     <header class="site-header">
       <a class="brand" href="{{ url_for('home.index') }}">finance_web_app</a>
       <nav>
+        <a href="{{ url_for('summary.dashboard') }}">Dashboard</a>
         <a href="{{ url_for('budgets.list_budgets') }}">Budgets</a>
         <a href="{{ url_for('expenses.list_expenses') }}">Expenses</a>
         <a href="{{ url_for('commitments.list_commitments') }}">Commitments</a>

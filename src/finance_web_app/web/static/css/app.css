@@ -388,3 +388,43 @@ a {
 .muted {
   color: var(--muted);
 }
+
+/* ---- Dashboard -------------------------------------------------------- */
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.month-nav {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.insights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.25rem;
+  margin: 0;
+}
+
+.insights > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.insights dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.insights dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+canvas {
+  max-width: 100%;
+}

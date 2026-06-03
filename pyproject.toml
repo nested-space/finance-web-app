@@ -51,6 +51,7 @@ finance_web_app = [
     "web/templates/*.html",
     "web/static/css/*.css",
     "web/static/js/*.js",
+    "web/static/vendor/chartjs/*.js",
     "web/static/fonts/*.woff2",
 ]
 

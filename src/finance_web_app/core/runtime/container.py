@@ -14,7 +14,9 @@ from sqlmodel import Session
 from finance_web_app.application.services.budget_service import BudgetService
 from finance_web_app.application.services.commitment_service import CommitmentService
 from finance_web_app.application.services.expense_service import ExpenseService
+from finance_web_app.application.services.finance_model_service import FinanceModelService
 from finance_web_app.application.services.income_service import IncomeService
+from finance_web_app.application.services.insights_service import InsightsService
 from finance_web_app.infrastructure.persistence.budget_repository import SqlBudgetRepository
 from finance_web_app.infrastructure.persistence.commitment_repository import SqlCommitmentRepository
 from finance_web_app.infrastructure.persistence.engine import make_session
@@ -51,3 +53,22 @@ def get_commitment_service() -> CommitmentService:
 
 def get_income_service() -> IncomeService:
     return IncomeService(SqlIncomeRepository(get_session()))
+
+
+def get_finance_model_service() -> FinanceModelService:
+    session = get_session()
+    return FinanceModelService(
+        SqlIncomeRepository(session),
+        SqlCommitmentRepository(session),
+        SqlExpenseRepository(session),
+        SqlBudgetRepository(session),
+    )
+
+
+def get_insights_service() -> InsightsService:
+    session = get_session()
+    return InsightsService(
+        get_finance_model_service(),
+        SqlExpenseRepository(session),
+        SqlBudgetRepository(session),
+    )

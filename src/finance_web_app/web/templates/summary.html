@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — finance_web_app{% endblock %}
+
+{% block content %}
+  <section class="panel panel--navy dashboard-header">
+    <div>
+      <h1 id="dashboard-month">{{ month_label }}</h1>
+      <p class="lead">Your projected balance and where the money goes this month.</p>
+    </div>
+    <nav class="month-nav" aria-label="Month navigation">
+      <a class="btn btn-on-navy" id="nav-prev"
+         href="{{ url_for('summary.dashboard_for_month', year=prev_year, month=prev_month) }}">‹ Prev</a>
+      <a class="btn btn-on-navy" id="nav-next"
+         href="{{ url_for('summary.dashboard_for_month', year=next_year, month=next_month) }}">Next ›</a>
+    </nav>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">Insights</h2>
+    <dl class="insights">
+      <div><dt>Total income</dt><dd id="insight-total-income">£{{ "%.2f"|format(payload.insights.total_income) }}</dd></div>
+      <div><dt>Total outgoings</dt><dd id="insight-total-outgoings">£{{ "%.2f"|format(payload.insights.total_outgoings) }}</dd></div>
+      <div><dt>Net this month</dt><dd id="insight-net">£{{ "%.2f"|format(payload.insights.net) }}</dd></div>
+      <div><dt>Closing balance</dt><dd id="insight-closing-balance" class="feature-num">£{{ "%.2f"|format(payload.insights.closing_balance) }}</dd></div>
+      <div><dt>Largest expense</dt><dd id="insight-largest-expense">
+        {%- if payload.insights.largest_expense -%}
+          {{ payload.insights.largest_expense.name }} — £{{ "%.2f"|format(payload.insights.largest_expense.amount) }}
+        {%- else -%}—{%- endif -%}
+      </dd></div>
+      <div><dt>Over budget</dt><dd id="insight-over-budget">
+        {{- payload.insights.over_budget | join(", ") or "None" -}}
+      </dd></div>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <div class="split split-2">
+      <div><h3>Balance projection</h3><canvas id="chart-finance-model" height="220"></canvas></div>
+      <div><h3>Income vs outgoings</h3><canvas id="chart-income-outgoings" height="220"></canvas></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="split split-2">
+      <div><h3>Budget breakdown</h3><canvas id="chart-budget-breakdown" height="240"></canvas></div>
+      <div><h3>Commitments by category</h3><canvas id="chart-commitments" height="240"></canvas></div>
+    </div>
+  </section>
+
+  <script type="application/json" id="dashboard-data">{{ payload | tojson }}</script>
+  <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
