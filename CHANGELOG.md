@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Application runtime: app factory with a per-request SQLite connection, schema bootstrap and a forward-only migration runner, and request logging that records outcomes (method, path, status, duration) but never payloads; landing page and 404 handler.
 - Test pyramid covering the domain value objects, form validation, service use cases, the repository contract, the SQLite repository, the migration runner, and the web routes.
 
+### Changed
+
+- **Re-platformed persistence onto SQLModel (SQLAlchemy + Pydantic) with Alembic** (decisions D-008/D-009). SQLModel `table=True` models are now the schema source of truth; repositories extend a generic `SqlModelRepository` base so CRUD lives once. `Money` and `EffectivePeriod` are retained — `Money` persists as `INTEGER` pence via a `MoneyPence` SQLAlchemy `TypeDecorator`, and `EffectivePeriod` is derived from the `effective_from`/`effective_stop` columns. Connection pragmas now apply via an engine `connect` hook; the app holds a per-request SQLModel `Session`.
+- **Replaced the hand-written `schema.sql` and custom migration runner with Alembic.** `alembic upgrade head` runs on startup (forward-only, aborts loudly on failure); `alembic_version` supersedes the `schema_version` table. Added `sqlmodel` and `alembic` as approved runtime dependencies.
+
 ### Notes
 
 - Implementation proceeds in vertical-slice cycles; this is Cycle 1 (Budgets walking skeleton). Expenses, commitments, income, the finance model, and charts are not yet built — see `docs/ROADMAP.md` -> "Build phasing".

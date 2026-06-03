@@ -84,10 +84,10 @@ tests/
 
 ### Fixtures
 
-- `in_memory_sqlite` — returns a `sqlite3.Connection` to `:memory:` with the schema applied. For *repository unit tests only*; services and commands use fake-repository fixtures instead.
-- `tmp_sqlite_path` — yields a path to a temp file, runs schema bootstrap, cleans up afterward. Used by integration repository tests.
-- `flask_client` — yields a Flask test client wired to a temp-file SQLite. Used by integration web tests.
-- `fake_budget_repository` (and siblings) — in-memory `dict`-backed implementations of each Protocol. Used in service/command tests so they never touch SQL.
+- `engine` — an in-memory SQLModel `Engine` with `metadata.create_all` applied. `session` — a `Session` bound to it. Used by integration repository tests.
+- `flask_client` — yields a Flask test client wired to a temp-file DB; the app factory runs `alembic upgrade head` on creation. Used by integration web tests.
+- `fake_budget_repository` (and siblings) — in-memory `dict`-backed implementations of each Protocol, returning model instances. Used in service tests so they never touch SQL. `budget_service` wraps one for convenience.
+- `seeded_repositories` — fake repositories pre-populated with sample rows.
 
 ### Coverage expectations
 
@@ -174,7 +174,7 @@ A change is done only when every statement below is true:
 
 Security rules are non-optional and enforced by review.
 
-- **Parameterised SQL only.** Every `cursor.execute(query, params)` call uses placeholders. Ruff's `S` rules catch `f`-string SQL; this rule is enabled in `pyproject.toml` and may not be disabled.
+- **No string-built SQL.** Queries go through the SQLModel/SQLAlchemy expression API, which binds parameters. Any raw SQL (e.g. a hand-written migration or a `exec_driver_sql` in a test) uses bound parameters, never f-string interpolation. Ruff's `S` rules catch `f`-string SQL and may not be disabled.
 - **Validate at the boundary.** Forms reject malformed input. Services trust their domain VO inputs.
 - **Fail securely.** Errors raised from `core/contracts/errors.py` are typed. The blueprint layer maps them to HTTP status codes; nothing surfaces a stack trace to the user.
 - **Do not log payload.** Form values, query parameters, and DB row contents do not appear in logs. Log identifiers and outcomes, not data. See `OPERATIONS.md` → "Observability".
@@ -182,7 +182,7 @@ Security rules are non-optional and enforced by review.
 
 ## Adding dependencies
 
-`pyproject.toml` is the canonical dependency declaration.
+`pyproject.toml` is the canonical dependency declaration. The approved runtime set is `flask`, `sqlmodel` (→ SQLAlchemy + Pydantic), and `alembic`; dev tools are `ruff`, `pytest`, `mypy`.
 
 - A new runtime dependency requires explicit user approval. This applies whether the dependency is Python, JavaScript, or CSS. See `ARCHITECTURE.md` → "Frontend asset boundary" for the rule.
 - A new dev dependency (a tool used only by the gates or in tests) requires the same approval.

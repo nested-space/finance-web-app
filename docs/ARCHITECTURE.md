@@ -24,8 +24,8 @@ The codebase is organised under `src/finance_web_app/`. Each layer has a single 
 | Service layer | `application/services` | Use-case logic, date-effective filtering, finance modelling, insights computation. Invoked directly by blueprints. | `core/contracts`, `domain` | `web/*`, `infrastructure/persistence` concretes |
 | Contracts layer | `core/contracts` | Repository Protocols, typed error classes, boundary types | `domain` only when needed for signatures | `infrastructure/*`, `web/*`, `application/services` |
 | Runtime layer | `core/runtime` | App factory, DI wiring, container — the *only* place where concrete repositories are bound to service constructors | `core/contracts`, `application/services`, `infrastructure/persistence` concretes | Business rules |
-| Domain layer | `domain` | Value objects, records, enums, invariants | Python stdlib only | `application/*`, `infrastructure/*`, `web/*` |
-| Persistence infrastructure | `infrastructure/persistence` | SQLite repositories, connection helper, schema bootstrap, migration runner | `core/contracts`, `domain` | `web/*`, `application/*` |
+| Domain layer | `domain` | Value objects, SQLModel record models, enums, invariants | Python stdlib, `sqlmodel`/`sqlalchemy`/`pydantic` (type & model definitions only — no I/O) | `application/*`, `infrastructure/*`, `web/*` |
+| Persistence infrastructure | `infrastructure/persistence` | SQLModel repositories (generic base + per-resource), engine/session helpers, Alembic runner | `core/contracts`, `domain` | `web/*`, `application/*` |
 | Rendering layer | `web/rendering` | Jinja rendering helpers, JSON response shapers, presentation-only mapping | `core/contracts`, `domain` | Business logic |
 
 There is deliberately **no command layer.** For four CRUD resources with no cross-service transaction, a "thin orchestrator" between blueprint and service is a pass-through hop that earns nothing; the blueprint calls the service directly and `web/rendering` shapes the output. Reintroduce an orchestration layer only when a single request genuinely spans multiple services, and document why.
@@ -36,7 +36,7 @@ Boundary rules:
 - A blueprint must never call a repository directly. It goes through a service.
 - Output shaping (template context, JSON) lives only in `web/rendering` — there is a single presentation home, not two.
 - `core/contracts` may not import from `infrastructure/*` — Protocols are abstract by definition.
-- `domain` is leaf. If a value object needs to "save itself" or "query for siblings", you have the wrong layer.
+- `domain` defines types and models but performs no I/O. The record models are SQLModel `table=True` classes (the schema source of truth) and may import `sqlmodel`/`sqlalchemy`/`pydantic`, but a model never opens a session, runs a query, or "saves itself" — that is the repository's job. `Money` and `EffectivePeriod` remain pure value objects.
 - `core/runtime` is the only layer permitted to import both a Protocol from `core/contracts` *and* a concrete class from `infrastructure/persistence`. It is the seam. The "container" is plain factory wiring, not a DI framework.
 
 ## Repository layout
@@ -93,22 +93,26 @@ src/finance_web_app/
       container.py
   domain/
     __init__.py
-    money.py
-    recurrence.py
-    effective_period.py
-    records.py
+    money.py              # Money VO + MoneyPence (SQLAlchemy TypeDecorator)
+    recurrence.py         # (C2)
+    effective_period.py   # EffectivePeriod VO (derived from model columns)
+    records.py            # SQLModel table models (Budget, User, ... ) + Category
   infrastructure/
     __init__.py
     persistence/
       __init__.py
-      connection.py
-      schema.sql
-      migrations/
-      budget_repository_sqlite.py
-      expense_repository_sqlite.py
-      commitment_repository_sqlite.py
-      income_repository_sqlite.py
+      engine.py           # engine + connect-time pragmas; session factory
+      base_repository.py   # SqlModelRepository[T] — generic CRUD
+      budget_repository.py # SqlBudgetRepository(SqlModelRepository[Budget])
+      migrate.py           # programmatic `alembic upgrade head`
+  migrations/             # Alembic environment (ships with the package)
+    env.py
+    script.py.mako
+    versions/
 ```
+
+(`alembic.ini` lives at the repo root for the dev CLI; at runtime the app builds
+the Alembic config programmatically in `migrate.py`, so it does not depend on cwd.)
 
 ## Runtime flow
 
@@ -131,14 +135,14 @@ HTTP POST /finance/budgets
   core/contracts/budget_repository.py  (4) Protocol contract — what the service sees
         |
         v
-  infrastructure/persistence/budget_repository_sqlite.py
-                                       (5) concrete impl, parameterised SQL
+  infrastructure/persistence/budget_repository.py
+                                       (5) SqlBudgetRepository: session.add + commit
         |
         v
-  SQLite file (FINANCE_DB_PATH)        (6) INSERT (Money -> int pence at the boundary)
+  SQLite file (FINANCE_DB_PATH)        (6) INSERT (MoneyPence type -> int pence)
         |
         v
-  BudgetRecord returned up the stack
+  Budget model returned up the stack
         |
         v
   web/blueprints/budgets.py            (7) PRG: redirect to GET /finance/budgets
@@ -155,23 +159,43 @@ Each Protocol is decorated `@runtime_checkable` so the contract tests in `tests/
 ```python
 # core/contracts/budget_repository.py
 from typing import Protocol, runtime_checkable
-from finance_web_app.domain.records import BudgetRecord
+from finance_web_app.domain.records import Budget   # a SQLModel table model
 
 
 @runtime_checkable
 class BudgetRepository(Protocol):
-    def list_all(self) -> list[BudgetRecord]: ...
-    def list_effective(self, year: int, month: int) -> list[BudgetRecord]: ...
-    def get(self, budget_id: int) -> BudgetRecord: ...           # raises NotFoundError
-    def create(self, record: BudgetRecord) -> BudgetRecord: ...  # returns record with id set
-    def delete(self, budget_id: int) -> None: ...                # raises NotFoundError
+    def list_all(self) -> list[Budget]: ...
+    def list_effective(self, year: int, month: int) -> list[Budget]: ...
+    def get(self, budget_id: int) -> Budget: ...        # raises NotFoundError
+    def create(self, record: Budget) -> Budget: ...     # returns record with id set
+    def delete(self, budget_id: int) -> None: ...       # raises NotFoundError
+```
+
+The Protocol is unchanged in *shape* by the ORM switch — the service still depends
+only on it. The concrete implementation extends a generic base so CRUD is written
+once:
+
+```python
+# infrastructure/persistence/base_repository.py  (shared CRUD)
+class SqlModelRepository(Generic[TModel]):
+    model: type[TModel]
+    resource_name: ClassVar[str]
+    def __init__(self, session: Session) -> None: ...
+    # list_all / get / create / delete implemented here once
+
+# infrastructure/persistence/budget_repository.py
+class SqlBudgetRepository(SqlModelRepository[Budget]):
+    model = Budget
+    resource_name = "budget"
+    def list_effective(self, year: int, month: int) -> list[Budget]:
+        return [b for b in self.list_all() if b.period.covers_month(year, month)]
 ```
 
 Error types live in `core/contracts/errors.py`:
 
 - `NotFoundError(resource: str, identifier: int)` — raised by `get` and `delete` when the row is absent.
 - `ValidationError(field: str, reason: str)` — raised by services when a form-validated VO still fails a use-case rule.
-- `RepositoryError(operation: str, cause: Exception)` — wraps unexpected SQL failures so services never catch `sqlite3.Error`.
+- `RepositoryError(operation: str, cause: Exception)` — wraps an unexpected `SQLAlchemyError` so services never catch a driver exception.
 
 Income has one extra method to cover its child table:
 
@@ -182,15 +206,16 @@ class IncomeRepository(Protocol):
     def list_exceptions(self, income_id: int) -> list[IncomeException]: ...
 ```
 
-## Domain value objects
+## Domain models and value objects
 
-`domain/` contains pure data types. They have invariants but no I/O.
+`domain/` defines the record **models** (the schema source of truth) and the
+**value objects** they compose. Neither performs I/O.
 
-- **`Money`** — `dataclass(frozen=True)` wrapping a `Decimal`. Constructed via `Money.from_form_string(str)` which rejects negative input on creation. Two-decimal display via `__str__`. **Persisted as `INTEGER` minor units (pence):** repositories convert `Money` to/from `int` at the persistence boundary via `Money.pence()` / `Money.from_pence(int)`. The DB never stores a float — see `schema.sql` and `OPERATIONS.md`.
-- **`Recurrence`** — `Enum` with members `DAILY`, `WEEKLY`, `MONTHLY`, `QUARTERLY`, `ANNUAL`, `ONCE_ONLY`. Income may use all six; commitments may use all except `QUARTERLY`. The enum member **name** (`ONCE_ONLY`, etc.) is the value stored in the DB and the schema `CHECK` set; human display text is mapped in `web/rendering`, never persisted. Recurrence carries no extra day fields — a record's firing days are derived from its own `effective_from` (see "`FinanceModelService` contract"), so there are no `day_of_*` columns to keep consistent.
-- **`EffectivePeriod`** — `dataclass(frozen=True)` with `from_date: date` and `stop_date: date | None`. Invariant: `stop_date is None or stop_date >= from_date`. Exposes `covers_month(year: int, month: int) -> bool` — the *single* date-effective predicate used everywhere, defined here and nowhere else. Services call this method; there is no second copy of the predicate in `application/services`. (See "Bug-fix decisions" below.)
-- **`BudgetRecord`**, **`ExpenseRecord`**, **`CommitmentRecord`**, **`IncomeRecord`** — `dataclass(frozen=True)` with `id: int | None`, `name: str`, `quantity: Money`, plus resource-specific fields (`BudgetRecord` and the categorised resources carry a `category`). `id` is `None` before persistence. The DB `created` column is an audit timestamp and is **not** carried on these records; surface it on a record only if a feature needs it.
-- **`IncomeException`** — child record of `IncomeRecord`: `date`, `quantity: Money`, `reason: str | None`.
+- **`Money`** — `dataclass(frozen=True)` wrapping a `Decimal`. Constructed via `Money.from_form_string(str)` which rejects negative input on creation. Two-decimal display via `__str__`. **Persisted as `INTEGER` minor units (pence)** by the `MoneyPence` SQLAlchemy `TypeDecorator` (also in `domain/money.py`), which converts via `Money.pence()` / `Money.from_pence(int)`. The DB never stores a float — see `OPERATIONS.md`.
+- **`Recurrence`** — `Enum` with members `DAILY`, `WEEKLY`, `MONTHLY`, `QUARTERLY`, `ANNUAL`, `ONCE_ONLY` (C2). Income may use all six; commitments may use all except `QUARTERLY`. The enum member **name** is the value stored in the DB; human display text is mapped in `web/rendering`, never persisted. Firing days derive from `effective_from` (see "`FinanceModelService` contract"), so there are no `day_of_*` columns.
+- **`EffectivePeriod`** — `dataclass(frozen=True)` with `from_date: date` and `stop_date: date | None`. Invariant: `stop_date is None or stop_date >= from_date`. Exposes `covers_month(year, month) -> bool` — the *single* date-effective predicate, defined here and nowhere else. It is **derived, not stored**: models persist `effective_from` / `effective_stop` columns and expose `.period` returning an `EffectivePeriod`. Services call `record.period.covers_month(...)`; there is no second copy of the predicate.
+- **`Budget`** (and C2's `Expense`, `Commitment`, `Income`, `IncomeException`) — **SQLModel `table=True` models**, the schema source of truth. `id: int | None` is `None` before persistence. `quantity: Money` maps through `MoneyPence`; `category: Category` is stored as its member name. Integrity from the old `schema.sql` is preserved as `CheckConstraint`s in `__table_args__` (non-empty name, `quantity >= 0`, valid category set, `effective_stop >= effective_from`). A `created` audit timestamp column is carried on the model (defaulted server-/Python-side) but is not surfaced in templates unless a feature needs it. Models set `model_config = {"arbitrary_types_allowed": True}` so Pydantic accepts the `Money` field type.
+- **`Category`** — `Enum`; member name is the persisted code, display text lives in `web/rendering`.
 
 ## Bug-fix decisions (carried over from the prior Node implementation)
 
@@ -240,14 +265,15 @@ Income exceptions: if an `IncomeException` exists for date `D`, the exception's 
 
 Adding a fifth resource (hypothetical "savings goals"):
 
-1. Add `SavingsGoalRecord` in `domain/records.py`.
+1. Add a `SavingsGoal` SQLModel `table=True` model in `domain/records.py` (with its CHECK constraints).
 2. Add `SavingsGoalRepository` Protocol in `core/contracts/`.
-3. Add `SqliteSavingsGoalRepository` in `infrastructure/persistence/`, plus a migration script in `infrastructure/persistence/migrations/`.
-4. Add `SavingsGoalService` in `application/services/`.
-5. Add `SavingsGoalForm` and a blueprint in `web/`.
-6. Wire the concrete repository to the service in `core/runtime/container.py`.
+3. Add `SqlSavingsGoalRepository(SqlModelRepository[SavingsGoal])` in `infrastructure/persistence/` — set `model`/`resource_name`, add only resource-specific queries (CRUD is inherited).
+4. Generate the migration: `alembic revision --autogenerate -m "add savings_goal"`, then review the script (autogenerate misses some constraints — check the diff).
+5. Add `SavingsGoalService` in `application/services/`.
+6. Add `SavingsGoalForm` and a blueprint in `web/`.
+7. Wire the concrete repository to the service in `core/runtime/container.py`.
 
-You do *not* touch existing services or repositories.
+You do *not* touch existing services or repositories, nor the generic base.
 
 Adding a new recurrence pattern (e.g. "Biweekly"):
 

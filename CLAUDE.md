@@ -2,26 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project state: greenfield, docs-first
+## Project state
 
-There is **no application code yet**. The repo currently holds only the design contract:
-`README.md`, `pyproject.toml`, `schema.sql`, and the four documents under `docs/`. The single
-commit so far is the design contract for a Flask + SQLite rebuild of a prior Node/Express/EJS/MongoDB
-app (that old code is a *capability reference only* and is not in this repo).
+The **Budgets** resource is implemented end-to-end (Cycle 1), on a **SQLModel + Alembic** persistence
+stack. Expenses, commitments, income, the finance model, and charts are not built yet — they repeat the
+established patterns (see `docs/ROADMAP.md` → "Build phasing"). The app is the Flask + SQLite rebuild of a
+prior Node/Express/EJS/MongoDB app (that old code is a *capability reference only*, not in this repo).
 
-Your job in most sessions is to **implement that contract**, not invent architecture. The docs are
-authoritative and have a precedence order:
+The docs are authoritative and have a precedence order:
 
 - **`docs/ARCHITECTURE.md`** — wins for any structural/layering/boundary/contract question.
 - **`docs/DEVELOPMENT.md`** — the engineering process: quality gates, testing, commits, SemVer.
-- **`docs/OPERATIONS.md`** — running, env vars, schema/migrations, the SQLite storage conventions.
-- **`docs/ROADMAP.md`** — what is in/out of v1.0.0 scope, plus the open-decisions register.
+- **`docs/OPERATIONS.md`** — running, env vars, Alembic migrations, the SQLite storage conventions.
+- **`docs/ROADMAP.md`** — what is in/out of v1.0.0 scope, plus the decisions register.
 
 Read `docs/ARCHITECTURE.md` before writing any code. Most "where does this go?" questions are
 already answered there (layer map, repository Protocol shape, extension seams).
-
-Note: `schema.sql` lives at the repo root today; its documented canonical home is
-`src/finance_web_app/infrastructure/persistence/schema.sql`. Move it there when scaffolding the package.
 
 ## Quality gates (the merge gate — all four must exit zero)
 
@@ -46,31 +42,36 @@ Layers under `src/finance_web_app/`, with a **strict one-directional dependency 
 `docs/ARCHITECTURE.md`). A request walks each layer once:
 
 ```
-web/blueprints  →  web/forms  →  application/services  →  core/contracts (Protocols)  →  infrastructure/persistence (SQLite)
+web/blueprints  →  web/forms  →  application/services  →  core/contracts (Protocols)  →  infrastructure/persistence (SQLModel)
                                           ↓
                                    web/rendering   (shapes template context + JSON; presentation only)
 ```
+
+Persistence is **SQLModel + Alembic**: models in `domain/records.py` are the schema source of truth;
+repositories extend a generic `SqlModelRepository[T]` base (CRUD written once) and keep their Protocols;
+the app holds a per-request `Session`; `app_factory` runs `alembic upgrade head` on startup.
 
 Hard boundary rules that span files (a PR violating these fails review):
 
 - A **service never imports `infrastructure.persistence`**. It takes a Protocol-typed repo in its constructor.
 - A **blueprint never calls a repository directly** — always through a service.
 - **`core/runtime/container.py` is the only seam** allowed to import both a `core/contracts` Protocol and a
-  concrete `infrastructure/persistence` class. It is plain factory wiring, not a DI framework.
-- **`domain/` is a leaf** (stdlib only). No value object saves itself or queries siblings.
+  concrete `infrastructure/persistence` class. It owns the request-scoped `Session`. Plain factory wiring, not a DI framework.
+- **`domain/` performs no I/O.** Record models are SQLModel classes (may import sqlmodel/sqlalchemy/pydantic) but never open a session or query; `Money`/`EffectivePeriod` stay pure value objects.
 - Output shaping (template context, JSON) lives **only** in `web/rendering`.
 - There is deliberately **no command/orchestrator layer**. Don't add one unless one request genuinely
   spans multiple services — and document why.
 
 ## Invariants that are easy to get wrong (encoded once, on purpose)
 
-- **Money is integer pence.** `Money` wraps a `Decimal`; repositories convert to/from `int` at the
-  persistence boundary (`Money.pence()` / `Money.from_pence`). The DB column is `INTEGER` — never a float.
+- **Money is integer pence.** `Money` wraps a `Decimal`; the `MoneyPence` SQLAlchemy `TypeDecorator`
+  (in `domain/money.py`) stores it as an `INTEGER` column — never a float.
 - **Months are 1-indexed (1–12) end to end** — URLs, Python, JSON. No `month - 1` anywhere except inside
   `EffectivePeriod` itself.
-- **One date-effective predicate:** `EffectivePeriod.covers_month(year, month)`. Used identically for
-  budgets, commitments, and income — no per-resource copy. "Starts mid-month" counts as effective for the
-  whole month. (Expenses use a separate stricter `date.year/month ==` helper.)
+- **One date-effective predicate:** `EffectivePeriod.covers_month(year, month)`, called as `record.period.covers_month(...)`.
+  `EffectivePeriod` is *derived* from the model's `effective_from`/`effective_stop` columns (the `.period`
+  property), not stored. Used identically for budgets, commitments, and income — no per-resource copy.
+  "Starts mid-month" counts as effective for the whole month. (Expenses use a separate stricter `date.year/month ==` helper.)
 - **Recurrence firing derives from the record's own `effective_from`** via `Recurrence.fires_on(when, effective_from)`
   in `domain/recurrence.py`. There are **no `day_of_week`/`day_of_month` columns**. Services call the enum
   method; they never `match` on the enum themselves.
@@ -88,13 +89,14 @@ Hard boundary rules that span files (a PR violating these fails review):
   The message is the change and its rationale — nothing else. This overrides any default attribution
   behavior. No exceptions.
 - **No new dependency without explicit user approval** — Python *or* frontend (CDN/npm/vendored), runtime
-  *or* dev. Only `flask` (runtime) and `ruff`/`pytest`/`mypy` (dev) are pre-approved. Vendored frontend is
-  fixed at Bootstrap 4, Chart.js, jQuery, Font Awesome. New requests get logged in `docs/ROADMAP.md`'s
-  decision register (see open decisions D-001…D-006, several gated on auth).
+  *or* dev. Approved runtime set is `flask`, `sqlmodel`, `alembic`; dev tools `ruff`/`pytest`/`mypy`. Vendored
+  frontend is fixed at Bootstrap 4, Chart.js, jQuery, Font Awesome (not yet vendored — see ROADMAP). New
+  requests get logged in `docs/ROADMAP.md`'s decision register (D-008/D-009 record the SQLModel + Alembic adoption).
 - **Every behavior change ships with tests.** See the change-to-test mapping table in `docs/DEVELOPMENT.md`
   (e.g. service tests use in-memory fake repos implementing the Protocol; bug fixes need a test that fails
   before and passes after).
-- **Parameterised SQL only** — every `execute()` uses placeholders; ruff `S` rules catch f-string SQL.
+- **No string-built SQL** — use the SQLModel/SQLAlchemy query API; any raw SQL binds parameters. ruff `S` rules catch f-string SQL.
+- **Schema changes go through Alembic** — edit the models in `domain/records.py`, then `alembic revision --autogenerate`, and **review the script** (autogenerate misses CHECK constraints and custom-type imports).
 - **Conventional Commits** (`feat:`/`fix:`/`refactor:`/`test:`/`docs:`/`chore:`/`perf:`). Assess SemVer
   impact before committing; user-facing changes need a `CHANGELOG.md` entry, and a version bump in
   `pyproject.toml` + annotated tag follows the mandatory ordered workflow in `docs/DEVELOPMENT.md`.

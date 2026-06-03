@@ -16,8 +16,8 @@ The reference behavior comes from a prior Node/Express/EJS/MongoDB implementatio
 
 Implementation lands as vertical slices rather than all of v1.0.0 at once: the most complex piece (the finance model and the embedded-JSON chart contract) is built only after the layer stack has been proven against running code. This is sequencing, not a timeline; each cycle leaves `main` green against all four quality gates.
 
-- **C1 — Budgets walking skeleton (done).** One resource through every layer, plus app/DB/test scaffolding, so later resources are pattern-repetition. Tables only; ships a small custom stylesheet (`web/static/css/app.css`).
-- **C2 — Remaining resources.** Expenses, commitments, and income, including `Recurrence` and `Recurrence.fires_on` (`domain/recurrence.py`) and the `income_exception` child table. Still tables only.
+- **C1 — Budgets walking skeleton (done).** One resource through every layer, plus app/DB/test scaffolding, so later resources are pattern-repetition. Tables only; ships a small custom stylesheet (`web/static/css/app.css`). **Subsequently re-platformed onto SQLModel + Alembic** (D-008/D-009): models are canonical, repositories extend a generic SQLModel base, and Alembic owns the schema.
+- **C2 — Remaining resources.** Expenses, commitments, and income, including `Recurrence` and `Recurrence.fires_on` (`domain/recurrence.py`) and the `income_exception` child table. Each repository is a ~5-line subclass of the generic base; new tables ship as Alembic migrations. Still tables only.
 - **C3 — Finance model, insights, and charts.** `FinanceModelService`, `InsightsService`, the dashboard, and the per-page charts. Introduces the embedded-JSON delivery contract (`web/rendering/json_response.py`) and vendors the approved frontend assets (Bootstrap 4, jQuery, Font Awesome, Chart.js) with Bootstrap-based styling replacing the interim stylesheet.
 
 ## Capability scope for v1.0.0
@@ -111,7 +111,9 @@ Decisions that are *open* and require the user's explicit input before they can 
 | D-005 | Logging library — stdlib `logging` vs. `structlog` | Resolved (interim) | Default is stdlib for v1.0.0. Reopen if structured logs become necessary in production. |
 | D-006 | Password hashing library when auth is scoped | Open — gated on auth work | Candidates include `werkzeug.security` (already transitively available via Flask) and `bcrypt`. **Requires user approval before introducing a new dependency.** |
 | D-007 | Provide a seed-data fixture for tests? | Resolved | Yes — `tests/conftest.py` exposes a `seeded_repositories` fixture. No production seed yet (see D-003). |
+| D-008 | Adopt SQLModel (SQLAlchemy + Pydantic) as the ORM, with models as the schema source of truth? | Resolved — approved | **Reverses the original raw-`sqlite3` pre-build decision.** Approved to remove CRUD duplication ahead of C2. Repositories keep their Protocols and extend a generic SQLModel base. `Money`/`EffectivePeriod` are retained as value objects. |
+| D-009 | Migration tool now that models are canonical (Alembic vs. `create_all`)? | Resolved — approved | Alembic. Retires `schema.sql`, the custom runner, and `schema_version`. `upgrade head` runs on startup; preserves the forward-only / abort-loudly model in `OPERATIONS.md`. |
 
-Every entry above maps to a rule, not a preference. The relevant rule is: **adding any frontend or Python dependency beyond the four named in `ARCHITECTURE.md` requires explicit user approval, recorded as a decision in this register.** A PR that introduces an undeclared dependency does not pass review.
+Every entry above maps to a rule, not a preference. The relevant rule is: **adding any frontend or Python dependency beyond those named in `ARCHITECTURE.md` requires explicit user approval, recorded as a decision in this register.** A PR that introduces an undeclared dependency does not pass review. The approved runtime set is now `flask`, `sqlmodel`, and `alembic`.
 
 Closed decisions move out of the table once they have been recorded in `CHANGELOG.md`.

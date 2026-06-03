@@ -36,7 +36,7 @@ $FINANCE_DB_PATH-wal     # write-ahead log (managed by SQLite, do not touch)
 $FINANCE_DB_PATH-shm     # shared memory file (managed by SQLite, do not touch)
 ```
 
-Connection settings applied per connection in `infrastructure/persistence/connection.py`:
+Connection settings applied to every connection via an engine `connect` hook in `infrastructure/persistence/engine.py`:
 
 - `PRAGMA foreign_keys = ON` — enforces the `income_exception.income_id` cascade and any future FKs.
 - `PRAGMA journal_mode = WAL` — readers don't block writers; safer crash recovery.
@@ -44,35 +44,32 @@ Connection settings applied per connection in `infrastructure/persistence/connec
 
 Column conventions an operator should know when inspecting the DB by hand:
 
-- **Money is stored as `INTEGER` pence**, never a float. A row showing `quantity = 1299` is £12.99. Do not expect a decimal point in the DB. This avoids floating-point rounding error in the per-day balance maths.
+- **Money is stored as `INTEGER` pence**, never a float — enforced by the `MoneyPence` SQLAlchemy type, not application code. A row showing `quantity = 1299` is £12.99. Do not expect a decimal point in the DB. This avoids floating-point rounding error in the per-day balance maths.
 - **Date columns hold ISO-8601 date strings (`YYYY-MM-DD`)**; only `created` holds a datetime (`YYYY-MM-DD HH:MM:SS`, UTC). Comparisons in queries rely on this lexical ordering, so do not write a datetime into a date column.
 - **The schema ships with no secondary indexes.** At single-user scale (tens-to-hundreds of rows) a full table scan is faster than maintaining an index. If a future query genuinely needs one, add it in a forward migration with measured evidence — do not add indexes speculatively.
 
 ## Schema and migrations
 
-The canonical schema lives at `src/finance_web_app/infrastructure/persistence/schema.sql`. It is the *current state* — not history.
+The schema source of truth is the **SQLModel models** in `src/finance_web_app/domain/records.py`. Migrations are managed by **Alembic**; the migration environment ships inside the package at `src/finance_web_app/migrations/` (with `alembic.ini` at the repo root for the dev CLI).
 
-Forward-only migrations live at `src/finance_web_app/infrastructure/persistence/migrations/NNN_short_name.sql`, numbered from `001` and applied in lexical order.
+Forward-only migration scripts live at `src/finance_web_app/migrations/versions/`. Generate one after changing a model:
 
-A `schema_version` table records the highest migration number that has been applied:
-
-```sql
-CREATE TABLE schema_version (
-    version     INTEGER NOT NULL PRIMARY KEY,
-    applied_at  TEXT    NOT NULL DEFAULT (datetime('now'))
-);
+```bash
+# point at any throwaway/dev DB; the script is generated from the model diff
+FINANCE_DB_PATH=./data/finance.db alembic revision --autogenerate -m "short description"
 ```
 
-On startup, `core/runtime/app_factory.py`:
+**Always review the generated script.** Autogenerate reliably detects tables and columns but can miss `CHECK` constraints and some type changes — edit the script if the diff is incomplete. Custom column types (e.g. `MoneyPence`) require the module to be imported in the script; the initial migration includes `import finance_web_app.domain.money`.
 
-1. Opens a connection to `FINANCE_DB_PATH`.
-2. If the file does not exist, runs `schema.sql`. That script stamps its own baseline `schema_version` row (the highest migration number folded into the current-state schema — `0` at v1.0.0). The runner does **not** insert a version separately, so a fresh DB is never re-migrated through changes it already contains.
-3. Whether the file was just created or already existed, the runner reads `MAX(version)` from `schema_version` and applies any migration scripts numbered higher, in lexical order, each in its own transaction; each script inserts its own `schema_version` row.
-4. If a migration script fails, the transaction rolls back and startup **aborts loudly** — the operator must intervene. The app does not start in a half-migrated state.
+On startup, `core/runtime/app_factory.py` calls `infrastructure/persistence/migrate.py::upgrade_to_head`, which runs the equivalent of `alembic upgrade head` against `FINANCE_DB_PATH`:
 
-The invariant tying these together: `schema.sql` always represents the current state and therefore stamps the same version that the last migration folded into it would have. When you add a migration, you do *not* also edit the baseline number in `schema.sql` unless you are simultaneously folding that migration into the baseline.
+1. Resolves the Alembic config programmatically (script location from the installed package, URL from `FINANCE_DB_PATH`), so it does not depend on the working directory.
+2. Applies every revision above the current `alembic_version` in order.
+3. If a migration fails, the exception propagates and **startup aborts loudly** — the app does not start in a half-migrated state.
 
-There is no rollback path. To "undo" a migration in production, restore from backup.
+Alembic's `alembic_version` table records the current revision (it replaces the previous hand-rolled `schema_version` table). Inspect it with `alembic current`.
+
+There is no rollback path in production. `alembic downgrade` exists for local development, but to "undo" a migration against real data, restore from backup.
 
 ## Backup and restore
 
