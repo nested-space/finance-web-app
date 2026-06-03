@@ -50,6 +50,7 @@ finance_web_app = [
     "migrations/versions/*.py",
     "web/templates/*.html",
     "web/static/css/*.css",
+    "web/static/fonts/*.woff2",
 ]
 
 [tool.ruff]

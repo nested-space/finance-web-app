@@ -3,9 +3,9 @@
 {% block title %}finance_web_app{% endblock %}
 
 {% block content %}
-  <section class="hero">
+  <section class="panel panel--navy">
     <h1>Personal finance</h1>
-    <p>Track budgets, expenses, recurring commitments and income.</p>
-    <a class="btn btn-primary" href="{{ url_for('budgets.list_budgets') }}">Finance</a>
+    <p class="lead">Track budgets, expenses, recurring commitments and income — one clear monthly view.</p>
+    <a class="btn btn-on-navy" href="{{ url_for('budgets.list_budgets') }}">Finance</a>
   </section>
 {% endblock %}

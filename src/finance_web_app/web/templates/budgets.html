@@ -3,77 +3,84 @@
 {% block title %}Budgets — finance_web_app{% endblock %}
 
 {% block content %}
-  <h1>Budgets</h1>
+  <section class="panel panel--tint">
+    <h1>Budgets</h1>
+    <p class="lead">Set a monthly cap per category and track spending against it.</p>
+  </section>
 
   {% if error %}
     <div class="alert alert-danger" role="alert">{{ error }}</div>
   {% endif %}
 
-  <form class="card form" method="post" action="{{ url_for('budgets.create_budget') }}">
-    <h2>Add a budget</h2>
-    <label>
-      Name
-      <input type="text" name="name" required />
-    </label>
-    <label>
-      Amount
-      <input type="number" name="quantity" step="0.01" min="0" required />
-    </label>
-    <label>
-      Category
-      <select name="category" required>
-        {% for code, label in category_choices %}
-          <option value="{{ code }}">{{ label }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label>
-      Effective from
-      <input type="date" name="effective_from" />
-    </label>
-    <label>
-      Effective stop
-      <input type="date" name="effective_stop" />
-    </label>
-    <button class="btn btn-primary" type="submit">Add budget</button>
-  </form>
+  <section class="panel">
+    <h2 class="panel-title">Add a budget</h2>
+    <form class="form" method="post" action="{{ url_for('budgets.create_budget') }}">
+      <label>
+        Name
+        <input type="text" name="name" required />
+      </label>
+      <label>
+        Amount
+        <input type="number" name="quantity" step="0.01" min="0" required />
+      </label>
+      <label>
+        Category
+        <select name="category" required>
+          {% for code, label in category_choices %}
+            <option value="{{ code }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Effective from
+        <input type="date" name="effective_from" />
+      </label>
+      <label>
+        Effective stop
+        <input type="date" name="effective_stop" />
+      </label>
+      <button class="btn btn-primary" type="submit">Add budget</button>
+    </form>
+  </section>
 
-  <h2>Current budgets</h2>
-  {% if budgets %}
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Amount</th>
-          <th>Category</th>
-          <th>From</th>
-          <th>Stop</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for budget in budgets %}
+  <section class="panel">
+    <h2 class="panel-title">Current budgets</h2>
+    {% if budgets %}
+      <table class="table">
+        <thead>
           <tr>
-            <td>{{ budget.name }}</td>
-            <td>{{ budget.quantity }}</td>
-            <td>{{ budget.category }}</td>
-            <td>{{ budget.effective_from }}</td>
-            <td>{{ budget.effective_stop }}</td>
-            <td>
-              <form
-                method="post"
-                action="{{ url_for('budgets.delete_budget', budget_id=budget.id) }}"
-              >
-                <button class="btn btn-delete" type="submit" title="Delete" aria-label="Delete">
-                  🗑
-                </button>
-              </form>
-            </td>
+            <th>Name</th>
+            <th>Amount</th>
+            <th>Category</th>
+            <th>From</th>
+            <th>Stop</th>
+            <th></th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  {% else %}
-    <p class="empty">No budgets yet. Add one above.</p>
-  {% endif %}
+        </thead>
+        <tbody>
+          {% for budget in budgets %}
+            <tr>
+              <td>{{ budget.name }}</td>
+              <td>{{ budget.quantity }}</td>
+              <td>{{ budget.category }}</td>
+              <td>{{ budget.effective_from }}</td>
+              <td>{{ budget.effective_stop }}</td>
+              <td>
+                <form
+                  method="post"
+                  action="{{ url_for('budgets.delete_budget', budget_id=budget.id) }}"
+                >
+                  <button class="btn-icon" type="submit" title="Delete" aria-label="Delete">
+                    🗑
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No budgets yet. Add one above.</p>
+    {% endif %}
+  </section>
 {% endblock %}
