@@ -19,11 +19,12 @@ from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel
 
 from finance_web_app.application.services.budget_service import BudgetService
+from finance_web_app.application.services.commitment_service import CommitmentService
 from finance_web_app.application.services.expense_service import ExpenseService
 from finance_web_app.core.contracts.errors import NotFoundError
 from finance_web_app.core.runtime.app_factory import create_app
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import Budget, Category, Expense
+from finance_web_app.domain.records import Budget, Category, Commitment, Expense
 from finance_web_app.infrastructure.persistence.engine import make_engine, make_session
 
 
@@ -130,6 +131,49 @@ def fake_expense_repository() -> FakeExpenseRepository:
 @pytest.fixture
 def expense_service(fake_expense_repository: FakeExpenseRepository) -> ExpenseService:
     return ExpenseService(fake_expense_repository)
+
+
+class FakeCommitmentRepository:
+    """In-memory ``CommitmentRepository`` for service tests."""
+
+    def __init__(self) -> None:
+        self._rows: dict[int, Commitment] = {}
+        self._next_id = 1
+
+    def list_all(self) -> list[Commitment]:
+        return [self._rows[key] for key in sorted(self._rows)]
+
+    def list_effective(self, year: int, month: int) -> list[Commitment]:
+        return [c for c in self.list_all() if c.period.covers_month(year, month)]
+
+    def get(self, commitment_id: int) -> Commitment:
+        try:
+            return self._rows[commitment_id]
+        except KeyError:
+            raise NotFoundError("commitment", commitment_id) from None
+
+    def create(self, record: Commitment) -> Commitment:
+        record.id = self._next_id
+        self._rows[self._next_id] = record
+        self._next_id += 1
+        return record
+
+    def delete(self, commitment_id: int) -> None:
+        if commitment_id not in self._rows:
+            raise NotFoundError("commitment", commitment_id)
+        del self._rows[commitment_id]
+
+
+@pytest.fixture
+def fake_commitment_repository() -> FakeCommitmentRepository:
+    return FakeCommitmentRepository()
+
+
+@pytest.fixture
+def commitment_service(
+    fake_commitment_repository: FakeCommitmentRepository,
+) -> CommitmentService:
+    return CommitmentService(fake_commitment_repository)
 
 
 @pytest.fixture

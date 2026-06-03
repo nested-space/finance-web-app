@@ -22,6 +22,7 @@ from sqlmodel import Field, SQLModel
 
 from finance_web_app.domain.effective_period import EffectivePeriod
 from finance_web_app.domain.money import Money, MoneyPence
+from finance_web_app.domain.recurrence import Recurrence
 
 _CATEGORY_CODES = (
     "'OCCASIONAL', 'GROCERIES', 'CLOTHING', 'ENTERTAINMENT', 'PETROL', 'KIDS', 'CHRISTMAS'"
@@ -46,6 +47,27 @@ class Category(Enum):
             return cls[code]
         except KeyError as exc:
             raise ValueError(f"unknown category: {code!r}") from exc
+
+
+# Commitments use a subset of categories and recurrences. These tuples are the
+# single source for the form choices, form validation, and the table CHECK
+# strings below, so the allowed sets can never drift apart.
+COMMITMENT_CATEGORIES: tuple[Category, ...] = (
+    Category.OCCASIONAL,
+    Category.GROCERIES,
+    Category.KIDS,
+    Category.ENTERTAINMENT,
+    Category.CLOTHING,
+)
+COMMITMENT_RECURRENCES: tuple[Recurrence, ...] = (
+    Recurrence.DAILY,
+    Recurrence.WEEKLY,
+    Recurrence.MONTHLY,
+    Recurrence.ANNUAL,
+    Recurrence.ONCE_ONLY,
+)
+_COMMITMENT_CATEGORY_CODES = ", ".join(f"'{c.name}'" for c in COMMITMENT_CATEGORIES)
+_COMMITMENT_RECURRENCE_CODES = ", ".join(f"'{r.name}'" for r in COMMITMENT_RECURRENCES)
 
 
 class Budget(SQLModel, table=True):
@@ -100,6 +122,37 @@ class Expense(SQLModel, table=True):
     def in_month(self, year: int, month: int) -> bool:
         """Stricter date predicate for expenses (its own helper, not covers_month)."""
         return self.date.year == year and self.date.month == month
+
+
+class Commitment(SQLModel, table=True):
+    """A recurring outgoing (e.g. a subscription), effective over a date range."""
+
+    __tablename__ = "commitment"
+    model_config = {"arbitrary_types_allowed": True}
+    __table_args__ = (
+        CheckConstraint("length(name) > 0", name="commitment_name_nonempty"),
+        CheckConstraint("quantity >= 0", name="commitment_quantity_nonneg"),
+        CheckConstraint(
+            f"category IN ({_COMMITMENT_CATEGORY_CODES})", name="commitment_category_valid"
+        ),
+        CheckConstraint(
+            f"recurrence IN ({_COMMITMENT_RECURRENCE_CODES})", name="commitment_recurrence_valid"
+        ),
+        CheckConstraint("effective_stop >= effective_from", name="commitment_effective_range"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    quantity: Money = Field(sa_column=Column(MoneyPence, nullable=False))
+    category: Category
+    recurrence: Recurrence
+    effective_from: date = Field(default_factory=date.today)
+    effective_stop: date
+    created: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    @property
+    def period(self) -> EffectivePeriod:
+        return EffectivePeriod(from_date=self.effective_from, stop_date=self.effective_stop)
 
 
 class User(SQLModel, table=True):

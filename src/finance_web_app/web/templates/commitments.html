@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Commitments — finance_web_app{% endblock %}
+
+{% block content %}
+  <section class="panel panel--tint">
+    <h1>Commitments</h1>
+    <p class="lead">Track recurring outgoings such as subscriptions and bills.</p>
+  </section>
+
+  {% if error %}
+    <div class="alert alert-danger" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <section class="panel">
+    <h2 class="panel-title">Add a commitment</h2>
+    <form class="form" method="post" action="{{ url_for('commitments.create_commitment') }}">
+      <label>
+        Name
+        <input type="text" name="name" required />
+      </label>
+      <label>
+        Amount
+        <input type="number" name="quantity" step="0.01" min="0" required />
+      </label>
+      <label>
+        Category
+        <select name="category" required>
+          {% for code, label in category_choices %}
+            <option value="{{ code }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Recurrence
+        <select id="commitment-recurrence" name="recurrence" required>
+          {% for code, label in recurrence_choices %}
+            <option value="{{ code }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Effective from
+        <input type="date" name="effective_from" required />
+      </label>
+      <div id="commitment-length-fields" class="split split-2">
+        <label>
+          Length
+          <input type="number" name="length" min="1" step="1" />
+        </label>
+        <label>
+          Length unit
+          <select name="length_unit">
+            {% for code, label in length_unit_choices %}
+              <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <button class="btn btn-primary" type="submit">Add commitment</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">Current commitments</h2>
+    {% if groups %}
+      {% for group in groups %}
+        <h3>{{ group.recurrence }}</h3>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Amount</th>
+              <th>Category</th>
+              <th>From</th>
+              <th>Stop</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for commitment in group.commitments %}
+              <tr>
+                <td>{{ commitment.name }}</td>
+                <td>{{ commitment.quantity }}</td>
+                <td>{{ commitment.category }}</td>
+                <td>{{ commitment.effective_from }}</td>
+                <td>{{ commitment.effective_stop }}</td>
+                <td>
+                  <form
+                    method="post"
+                    action="{{ url_for('commitments.delete_commitment', commitment_id=commitment.id) }}"
+                  >
+                    <button class="btn-icon" type="submit" title="Delete" aria-label="Delete">
+                      🗑
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endfor %}
+    {% else %}
+      <p class="muted">No commitments yet. Add one above.</p>
+    {% endif %}
+  </section>
+
+  <script src="{{ url_for('static', filename='js/commitment_form.js') }}"></script>
+{% endblock %}

@@ -7,7 +7,15 @@ The single home for mapping domain values to display text -- in particular the
 
 from __future__ import annotations
 
-from finance_web_app.domain.records import Budget, Category, Expense
+from finance_web_app.domain.records import (
+    COMMITMENT_CATEGORIES,
+    COMMITMENT_RECURRENCES,
+    Budget,
+    Category,
+    Commitment,
+    Expense,
+)
+from finance_web_app.domain.recurrence import Recurrence
 
 CATEGORY_LABELS: dict[Category, str] = {
     Category.OCCASIONAL: "Occasional",
@@ -18,6 +26,22 @@ CATEGORY_LABELS: dict[Category, str] = {
     Category.KIDS: "Kids",
     Category.CHRISTMAS: "Christmas",
 }
+
+RECURRENCE_LABELS: dict[Recurrence, str] = {
+    Recurrence.DAILY: "Daily",
+    Recurrence.WEEKLY: "Weekly",
+    Recurrence.MONTHLY: "Monthly",
+    Recurrence.QUARTERLY: "Quarterly",
+    Recurrence.ANNUAL: "Annual",
+    Recurrence.ONCE_ONLY: "Once Only",
+}
+
+LENGTH_UNIT_CHOICES: list[tuple[str, str]] = [
+    ("DAYS", "Days"),
+    ("WEEKS", "Weeks"),
+    ("MONTHS", "Months"),
+    ("YEARS", "Years"),
+]
 
 
 def category_choices() -> list[tuple[str, str]]:
@@ -61,4 +85,48 @@ def _expense_row(expense: Expense) -> dict[str, object]:
         "category": CATEGORY_LABELS[expense.category],
         "date": expense.date.isoformat(),
         "description": expense.description or "",
+    }
+
+
+def commitment_category_choices() -> list[tuple[str, str]]:
+    return [(c.name, CATEGORY_LABELS[c]) for c in COMMITMENT_CATEGORIES]
+
+
+def commitment_recurrence_choices() -> list[tuple[str, str]]:
+    return [(r.name, RECURRENCE_LABELS[r]) for r in COMMITMENT_RECURRENCES]
+
+
+def commitments_page_context(commitments: list[Commitment]) -> dict[str, object]:
+    """Shape commitments into the template context, grouped by recurrence."""
+    by_recurrence: dict[Recurrence, list[Commitment]] = {}
+    for commitment in commitments:
+        by_recurrence.setdefault(commitment.recurrence, []).append(commitment)
+
+    groups = [
+        {
+            "recurrence": RECURRENCE_LABELS[recurrence],
+            "commitments": [_commitment_row(c) for c in by_recurrence[recurrence]],
+        }
+        for recurrence in COMMITMENT_RECURRENCES
+        if recurrence in by_recurrence
+    ]
+    return {
+        "groups": groups,
+        "category_choices": commitment_category_choices(),
+        "recurrence_choices": commitment_recurrence_choices(),
+        "length_unit_choices": LENGTH_UNIT_CHOICES,
+    }
+
+
+def _commitment_row(commitment: Commitment) -> dict[str, object]:
+    return {
+        "id": commitment.id,
+        "name": commitment.name,
+        "quantity": str(commitment.quantity),
+        "category": CATEGORY_LABELS[commitment.category],
+        "recurrence": RECURRENCE_LABELS[commitment.recurrence],
+        "effective_from": commitment.period.from_date.isoformat(),
+        "effective_stop": commitment.period.stop_date.isoformat()
+        if commitment.period.stop_date is not None
+        else "",
     }
