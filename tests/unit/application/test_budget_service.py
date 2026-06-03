@@ -60,3 +60,10 @@ def test_delete_missing_raises_not_found(budget_service: BudgetService) -> None:
 def test_create_empty_name_raises_validation_error(budget_service: BudgetService) -> None:
     with pytest.raises(ValidationError):
         _create(budget_service, name="")
+
+
+def test_totals_by_category_sums_per_category(budget_service: BudgetService) -> None:
+    _create(budget_service, name="A")  # GROCERIES, £200
+    _create(budget_service, name="B")  # GROCERIES, £200
+    totals = budget_service.totals_by_category(2026, 6)
+    assert totals == {Category.GROCERIES: Money.from_pence(40000)}

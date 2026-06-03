@@ -23,6 +23,7 @@ from finance_web_app.application.services.commitment_service import CommitmentSe
 from finance_web_app.application.services.expense_service import ExpenseService
 from finance_web_app.application.services.finance_model_service import FinanceModelService
 from finance_web_app.application.services.income_service import IncomeService
+from finance_web_app.application.services.insights_service import InsightsService
 from finance_web_app.core.contracts.errors import NotFoundError
 from finance_web_app.core.runtime.app_factory import create_app
 from finance_web_app.domain.money import Money
@@ -248,6 +249,15 @@ def finance_model_service(
         fake_expense_repository,
         fake_budget_repository,
     )
+
+
+@pytest.fixture
+def insights_service(
+    finance_model_service: FinanceModelService,
+    fake_expense_repository: FakeExpenseRepository,
+    fake_budget_repository: FakeBudgetRepository,
+) -> InsightsService:
+    return InsightsService(finance_model_service, fake_expense_repository, fake_budget_repository)
 
 
 @pytest.fixture

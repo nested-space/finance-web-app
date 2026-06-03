@@ -57,3 +57,10 @@ def test_delete_missing_raises(commitment_service: CommitmentService) -> None:
 def test_empty_name_raises_validation(commitment_service: CommitmentService) -> None:
     with pytest.raises(ValidationError):
         _create(commitment_service, name="")
+
+
+def test_totals_by_category_sums_per_category(commitment_service: CommitmentService) -> None:
+    _create(commitment_service, name="A")  # ENTERTAINMENT, £9.99
+    _create(commitment_service, name="B")  # ENTERTAINMENT, £9.99
+    totals = commitment_service.totals_by_category(2026, 6)
+    assert totals == {Category.ENTERTAINMENT: Money.from_pence(1998)}

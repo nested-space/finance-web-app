@@ -24,6 +24,13 @@ class BudgetService:
     def list_effective(self, year: int, month: int) -> list[Budget]:
         return self._budgets.list_effective(year, month)
 
+    def totals_by_category(self, year: int, month: int) -> dict[Category, Money]:
+        """Sum the month's budget caps per category (for the breakdown pie)."""
+        totals: dict[Category, int] = {}
+        for budget in self._budgets.list_effective(year, month):
+            totals[budget.category] = totals.get(budget.category, 0) + budget.quantity.pence()
+        return {category: Money.from_pence(pence) for category, pence in totals.items()}
+
     def create(
         self,
         *,

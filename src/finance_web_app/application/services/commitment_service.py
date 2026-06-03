@@ -21,6 +21,15 @@ class CommitmentService:
     def list_effective(self, year: int, month: int) -> list[Commitment]:
         return self._commitments.list_effective(year, month)
 
+    def totals_by_category(self, year: int, month: int) -> dict[Category, Money]:
+        """Sum the month's commitment amounts per category (for the by-category pie)."""
+        totals: dict[Category, int] = {}
+        for commitment in self._commitments.list_effective(year, month):
+            totals[commitment.category] = (
+                totals.get(commitment.category, 0) + commitment.quantity.pence()
+            )
+        return {category: Money.from_pence(pence) for category, pence in totals.items()}
+
     def create(
         self,
         *,
