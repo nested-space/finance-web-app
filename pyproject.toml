@@ -41,6 +41,14 @@ package-dir = { "" = "src" }
 where = ["src"]
 include = ["finance_web_app*"]
 
+[tool.setuptools.package-data]
+finance_web_app = [
+    "infrastructure/persistence/schema.sql",
+    "infrastructure/persistence/migrations/*.sql",
+    "web/templates/*.html",
+    "web/static/css/*.css",
+]
+
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]

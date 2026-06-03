@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}finance_web_app{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Personal finance</h1>
+    <p>Track budgets, expenses, recurring commitments and income.</p>
+    <a class="btn btn-primary" href="{{ url_for('budgets.list_budgets') }}">Finance</a>
+  </section>
+{% endblock %}
