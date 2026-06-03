@@ -47,3 +47,19 @@ def test_negative_construction_is_rejected() -> None:
 def test_from_pence_rejects_negative() -> None:
     with pytest.raises(ValueError):
         Money.from_pence(-1)
+
+
+def test_split_evenly_is_exact_and_distributes_remainder() -> None:
+    parts = Money.from_pence(1000).split_evenly(3)  # £10.00 / 3
+    assert [p.pence() for p in parts] == [334, 333, 333]
+    assert sum(p.pence() for p in parts) == 1000
+
+
+def test_split_evenly_divisible() -> None:
+    parts = Money.from_pence(900).split_evenly(3)
+    assert [p.pence() for p in parts] == [300, 300, 300]
+
+
+def test_split_evenly_rejects_zero_parts() -> None:
+    with pytest.raises(ValueError):
+        Money.from_pence(100).split_evenly(0)

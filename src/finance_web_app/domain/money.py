@@ -58,6 +58,17 @@ class Money:
         """Return the amount as integer minor units for persistence."""
         return int((self.amount * 100).to_integral_value())
 
+    def split_evenly(self, parts: int) -> list[Money]:
+        """Split into ``parts`` amounts that sum *exactly* to this one.
+
+        The remainder pence are distributed one each to the leading parts, so no
+        money is lost to rounding (used to prorate a budget across a month).
+        """
+        if parts < 1:
+            raise ValueError("parts must be at least 1")
+        base, remainder = divmod(self.pence(), parts)
+        return [Money.from_pence(base + (1 if i < remainder else 0)) for i in range(parts)]
+
     def __str__(self) -> str:
         return f"{self.amount:.2f}"
 

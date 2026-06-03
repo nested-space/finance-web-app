@@ -21,6 +21,7 @@ from sqlmodel import Session, SQLModel
 from finance_web_app.application.services.budget_service import BudgetService
 from finance_web_app.application.services.commitment_service import CommitmentService
 from finance_web_app.application.services.expense_service import ExpenseService
+from finance_web_app.application.services.finance_model_service import FinanceModelService
 from finance_web_app.application.services.income_service import IncomeService
 from finance_web_app.core.contracts.errors import NotFoundError
 from finance_web_app.core.runtime.app_factory import create_app
@@ -232,6 +233,21 @@ def fake_income_repository() -> FakeIncomeRepository:
 @pytest.fixture
 def income_service(fake_income_repository: FakeIncomeRepository) -> IncomeService:
     return IncomeService(fake_income_repository)
+
+
+@pytest.fixture
+def finance_model_service(
+    fake_income_repository: FakeIncomeRepository,
+    fake_commitment_repository: FakeCommitmentRepository,
+    fake_expense_repository: FakeExpenseRepository,
+    fake_budget_repository: FakeBudgetRepository,
+) -> FinanceModelService:
+    return FinanceModelService(
+        fake_income_repository,
+        fake_commitment_repository,
+        fake_expense_repository,
+        fake_budget_repository,
+    )
 
 
 @pytest.fixture
