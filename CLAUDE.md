@@ -92,7 +92,7 @@ Non-negotiables when touching templates or CSS:
 - **Sharp edges (`border-radius: 0`) and 1px borders.** Professional/corporate feel.
 - **Inter only** (self-hosted in `web/static/fonts/`, no CDN): H1 ExtraLight/Light, sub-heads Light, intro Bold, body Regular. **Sentence case** headings; **text always left-aligned**; tight tracking (`-0.01em`).
 - **White space is required** — don't fill the page; panels breathe.
-- **At most four panels** per page on the 20-section grid.
+- **At most four panels** per page. The 20-section grid is vertical rhythm — horizontal bands stacked down the page (the panel stack), **not** vertical columns; subdivide *within* a band flexibly (`.split`) but keep it balanced.
 - Accessible contrast (WCAG AA) is mandatory; only approved colour combinations.
 - Tokens + components live in `web/static/css/app.css`. New frontend libraries/fonts still need approval per the asset boundary.
 

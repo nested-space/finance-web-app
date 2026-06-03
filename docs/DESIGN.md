@@ -129,23 +129,33 @@ MANDATORY:
 
 ## 7. Grid and panels
 
-The layout grid divides a communication into **20 sections** along its long edge,
-giving balanced colour proportions and content panels.
+The grid divides a communication into **20 sections along its long edge** — a guide
+to the eye for balanced proportions, **not a literal 20-cell grid**.
+
+For a scrolling **website the long edge is vertical**, so the 20 sections are
+**horizontal bands stacked down the page** (each band runs full-width, left to
+right). They are *not* thin vertical columns — that orientation suits a landscape
+slide, not a website. Panels stack vertically and each spans a run of consecutive
+bands.
 
 MANDATORY:
 
 - A design uses **one to four panels** — **never more than four.**
-- Panels are built from whole grid sections, stay aligned to the grid, and may be
+- Panels span whole sections (bands) and stay aligned to the rhythm; they may be
   repositioned along it.
 
-Reference proportions (header panel is section 1):
+Reference proportions (header panel is band 1, measured down the page):
 
 - *Four panels:* header `1`, panel `2–5`, panel `6–14`, panel `15–20`.
 - *Three panels:* header `1`, panel `2–8`, panel `9–20`.
 
-Web translation: pages compose at most four panels (a header panel plus up to three
-content panels). `app.css` exposes a `.panel` system and a `.grid-20` helper for
-pages (e.g. the C3 dashboard) that need explicit section spans.
+**Subdivision within a band is flexible** — e.g. two charts side by side in one
+section. It is not governed by the 20-section guide, but it must look balanced and
+professional (equal/considered widths, consistent gaps).
+
+Implementation: the vertical band rhythm *is* the `.panel` stack (panels stacked in
+`.container`). For in-section horizontal layout, `app.css` provides `.split` with
+`.split-2` / `.split-3`, which stack on narrow viewports.
 
 ## 8. Panels, widgets, and Slate Navy presence
 

@@ -231,11 +231,22 @@ a {
   margin-top: 0;
 }
 
-/* Optional explicit 20-section grid for richer pages (e.g. C3 dashboard) */
-.grid-20 {
+/* The 20-section grid is a vertical rhythm: horizontal bands stacked down the
+   page (the .panel stack above), not columns. Subdivision *within* a band —
+   e.g. two charts side by side — is flexible; use .split. Stacks on narrow. */
+.split {
   display: grid;
-  grid-template-columns: repeat(20, 1fr);
   gap: clamp(1rem, 2.5vw, 2rem);
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+@media (min-width: 720px) {
+  .split-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .split-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
 }
 
 /* ---- Buttons (sharp, 1px border) -------------------------------------- */
