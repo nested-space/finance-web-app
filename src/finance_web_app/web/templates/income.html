@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Income — finance_web_app{% endblock %}
+
+{% block content %}
+  <section class="panel panel--tint">
+    <h1>Income</h1>
+    <p class="lead">Track recurring income streams that fund the month.</p>
+  </section>
+
+  {% if error %}
+    <div class="alert alert-danger" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <section class="panel">
+    <h2 class="panel-title">Add an income stream</h2>
+    <form class="form" method="post" action="{{ url_for('income.create_income') }}">
+      <label>
+        Name
+        <input type="text" name="name" required />
+      </label>
+      <label>
+        Amount
+        <input type="number" name="quantity" step="0.01" min="0" required />
+      </label>
+      <label>
+        Recurrence
+        <select name="recurrence" required>
+          {% for code, label in recurrence_choices %}
+            <option value="{{ code }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Effective from
+        <input type="date" name="effective_from" required />
+      </label>
+      <label>
+        Effective stop
+        <input type="date" name="effective_stop" />
+      </label>
+      <button class="btn btn-primary" type="submit">Add income</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">Current income streams</h2>
+    {% if incomes %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Amount</th>
+            <th>Recurrence</th>
+            <th>From</th>
+            <th>Stop</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for income in incomes %}
+            <tr>
+              <td>{{ income.name }}</td>
+              <td>{{ income.quantity }}</td>
+              <td>{{ income.recurrence }}</td>
+              <td>{{ income.effective_from }}</td>
+              <td>{{ income.effective_stop }}</td>
+              <td>
+                <form
+                  method="post"
+                  action="{{ url_for('income.delete_income', income_id=income.id) }}"
+                >
+                  <button class="btn-icon" type="submit" title="Delete" aria-label="Delete">
+                    🗑
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No income streams yet. Add one above.</p>
+    {% endif %}
+  </section>
+{% endblock %}

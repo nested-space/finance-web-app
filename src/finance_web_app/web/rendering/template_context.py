@@ -14,6 +14,7 @@ from finance_web_app.domain.records import (
     Category,
     Commitment,
     Expense,
+    Income,
 )
 from finance_web_app.domain.recurrence import Recurrence
 
@@ -129,4 +130,29 @@ def _commitment_row(commitment: Commitment) -> dict[str, object]:
         "effective_stop": commitment.period.stop_date.isoformat()
         if commitment.period.stop_date is not None
         else "",
+    }
+
+
+def income_recurrence_choices() -> list[tuple[str, str]]:
+    """(code, label) for the income recurrence select — all six patterns."""
+    return [(recurrence.name, RECURRENCE_LABELS[recurrence]) for recurrence in Recurrence]
+
+
+def incomes_page_context(incomes: list[Income]) -> dict[str, object]:
+    """Shape the income list into the template context for ``income.html``."""
+    return {
+        "incomes": [_income_row(income) for income in incomes],
+        "recurrence_choices": income_recurrence_choices(),
+    }
+
+
+def _income_row(income: Income) -> dict[str, object]:
+    stop = income.period.stop_date
+    return {
+        "id": income.id,
+        "name": income.name,
+        "quantity": str(income.quantity),
+        "recurrence": RECURRENCE_LABELS[income.recurrence],
+        "effective_from": income.period.from_date.isoformat(),
+        "effective_stop": stop.isoformat() if stop is not None else "",
     }

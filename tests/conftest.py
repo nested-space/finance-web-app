@@ -21,10 +21,18 @@ from sqlmodel import Session, SQLModel
 from finance_web_app.application.services.budget_service import BudgetService
 from finance_web_app.application.services.commitment_service import CommitmentService
 from finance_web_app.application.services.expense_service import ExpenseService
+from finance_web_app.application.services.income_service import IncomeService
 from finance_web_app.core.contracts.errors import NotFoundError
 from finance_web_app.core.runtime.app_factory import create_app
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import Budget, Category, Commitment, Expense
+from finance_web_app.domain.records import (
+    Budget,
+    Category,
+    Commitment,
+    Expense,
+    Income,
+    IncomeException,
+)
 from finance_web_app.infrastructure.persistence.engine import make_engine, make_session
 
 
@@ -174,6 +182,56 @@ def commitment_service(
     fake_commitment_repository: FakeCommitmentRepository,
 ) -> CommitmentService:
     return CommitmentService(fake_commitment_repository)
+
+
+class FakeIncomeRepository:
+    """In-memory ``IncomeRepository`` for service tests (with exceptions)."""
+
+    def __init__(self) -> None:
+        self._rows: dict[int, Income] = {}
+        self._exceptions: list[IncomeException] = []
+        self._next_id = 1
+
+    def list_all(self) -> list[Income]:
+        return [self._rows[key] for key in sorted(self._rows)]
+
+    def list_effective(self, year: int, month: int) -> list[Income]:
+        return [i for i in self.list_all() if i.period.covers_month(year, month)]
+
+    def get(self, income_id: int) -> Income:
+        try:
+            return self._rows[income_id]
+        except KeyError:
+            raise NotFoundError("income", income_id) from None
+
+    def create(self, record: Income) -> Income:
+        record.id = self._next_id
+        self._rows[self._next_id] = record
+        self._next_id += 1
+        return record
+
+    def delete(self, income_id: int) -> None:
+        if income_id not in self._rows:
+            raise NotFoundError("income", income_id)
+        del self._rows[income_id]
+        self._exceptions = [e for e in self._exceptions if e.income_id != income_id]
+
+    def add_exception(self, income_id: int, exception: IncomeException) -> None:
+        exception.income_id = income_id
+        self._exceptions.append(exception)
+
+    def list_exceptions(self, income_id: int) -> list[IncomeException]:
+        return [e for e in self._exceptions if e.income_id == income_id]
+
+
+@pytest.fixture
+def fake_income_repository() -> FakeIncomeRepository:
+    return FakeIncomeRepository()
+
+
+@pytest.fixture
+def income_service(fake_income_repository: FakeIncomeRepository) -> IncomeService:
+    return IncomeService(fake_income_repository)
 
 
 @pytest.fixture

@@ -11,14 +11,16 @@ enforced; SQLAlchemy's ``Enum`` does not emit one by default
 (``create_constraint`` is ``False``), so the category CHECK is declared here.
 """
 
-from __future__ import annotations
+# NB: no ``from __future__ import annotations`` here — SQLModel resolves
+# ``Relationship`` targets from real (non-stringified) annotations, so this file
+# evaluates annotations eagerly and uses explicit string forward refs instead.
 
 import datetime as dt
 from datetime import UTC, date, datetime
 from enum import Enum
 
-from sqlalchemy import CheckConstraint, Column
-from sqlmodel import Field, SQLModel
+from sqlalchemy import CheckConstraint, Column, UniqueConstraint
+from sqlmodel import Field, Relationship, SQLModel
 
 from finance_web_app.domain.effective_period import EffectivePeriod
 from finance_web_app.domain.money import Money, MoneyPence
@@ -41,7 +43,7 @@ class Category(Enum):
     CHRISTMAS = "CHRISTMAS"
 
     @classmethod
-    def from_code(cls, code: str) -> Category:
+    def from_code(cls, code: str) -> "Category":
         """Resolve a stored code to a ``Category``, raising ``ValueError`` if unknown."""
         try:
             return cls[code]
@@ -68,6 +70,9 @@ COMMITMENT_RECURRENCES: tuple[Recurrence, ...] = (
 )
 _COMMITMENT_CATEGORY_CODES = ", ".join(f"'{c.name}'" for c in COMMITMENT_CATEGORIES)
 _COMMITMENT_RECURRENCE_CODES = ", ".join(f"'{r.name}'" for r in COMMITMENT_RECURRENCES)
+
+# Income may use every recurrence (including QUARTERLY).
+_INCOME_RECURRENCE_CODES = ", ".join(f"'{r.name}'" for r in Recurrence)
 
 
 class Budget(SQLModel, table=True):
@@ -153,6 +158,62 @@ class Commitment(SQLModel, table=True):
     @property
     def period(self) -> EffectivePeriod:
         return EffectivePeriod(from_date=self.effective_from, stop_date=self.effective_stop)
+
+
+class Income(SQLModel, table=True):
+    """A recurring income stream, with optional one-off exceptions."""
+
+    __tablename__ = "income"
+    model_config = {"arbitrary_types_allowed": True}
+    __table_args__ = (
+        CheckConstraint("length(name) > 0", name="income_name_nonempty"),
+        CheckConstraint("quantity >= 0", name="income_quantity_nonneg"),
+        CheckConstraint(
+            f"recurrence IN ({_INCOME_RECURRENCE_CODES})", name="income_recurrence_valid"
+        ),
+        CheckConstraint(
+            "effective_stop IS NULL OR effective_stop >= effective_from",
+            name="income_effective_range",
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    quantity: Money = Field(sa_column=Column(MoneyPence, nullable=False))
+    recurrence: Recurrence
+    effective_from: date = Field(default_factory=date.today)
+    effective_stop: date | None = Field(default=None)
+    created: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    exceptions: list["IncomeException"] = Relationship(
+        back_populates="income",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+    @property
+    def period(self) -> EffectivePeriod:
+        return EffectivePeriod(from_date=self.effective_from, stop_date=self.effective_stop)
+
+
+class IncomeException(SQLModel, table=True):
+    """A one-off override of a recurring income on a specific date.
+
+    The exception's amount *replaces* the recurring amount for that day (applied
+    by the finance model in C3). Deleting an income cascades to its exceptions.
+    """
+
+    __tablename__ = "income_exception"
+    model_config = {"arbitrary_types_allowed": True}
+    __table_args__ = (
+        CheckConstraint("quantity >= 0", name="income_exception_quantity_nonneg"),
+        UniqueConstraint("income_id", "date", name="income_exception_unique_date"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    income_id: int = Field(foreign_key="income.id", ondelete="CASCADE")
+    date: dt.date
+    quantity: Money = Field(sa_column=Column(MoneyPence, nullable=False))
+    reason: str | None = Field(default=None)
+    income: Income | None = Relationship(back_populates="exceptions")
 
 
 class User(SQLModel, table=True):
