@@ -1,0 +1,102 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project state: greenfield, docs-first
+
+There is **no application code yet**. The repo currently holds only the design contract:
+`README.md`, `pyproject.toml`, `schema.sql`, and the four documents under `docs/`. The single
+commit so far is the design contract for a Flask + SQLite rebuild of a prior Node/Express/EJS/MongoDB
+app (that old code is a *capability reference only* and is not in this repo).
+
+Your job in most sessions is to **implement that contract**, not invent architecture. The docs are
+authoritative and have a precedence order:
+
+- **`docs/ARCHITECTURE.md`** — wins for any structural/layering/boundary/contract question.
+- **`docs/DEVELOPMENT.md`** — the engineering process: quality gates, testing, commits, SemVer.
+- **`docs/OPERATIONS.md`** — running, env vars, schema/migrations, the SQLite storage conventions.
+- **`docs/ROADMAP.md`** — what is in/out of v1.0.0 scope, plus the open-decisions register.
+
+Read `docs/ARCHITECTURE.md` before writing any code. Most "where does this go?" questions are
+already answered there (layer map, repository Protocol shape, extension seams).
+
+Note: `schema.sql` lives at the repo root today; its documented canonical home is
+`src/finance_web_app/infrastructure/persistence/schema.sql`. Move it there when scaffolding the package.
+
+## Quality gates (the merge gate — all four must exit zero)
+
+```bash
+source ~/.venvs/finance/bin/activate   # or your venv; install with: pip install -e .[dev]
+
+ruff format src/ tests/ --check
+ruff check src/ tests/
+PYTHONPATH=src pytest -q
+MYPYPATH=src mypy src/ tests/
+```
+
+- Run the app: `flask --app finance_web_app.web run` (serves 127.0.0.1:5000; `FLASK_DEBUG=1` for reloader).
+- Run one test: `PYTHONPATH=src pytest tests/unit/domain/test_recurrence.py::test_name -q`.
+- Markers: `pytest -m unit` (no I/O/DB) / `pytest -m integration` (touches SQLite or the Flask client).
+- No bypassing or `# noqa`-suppressing a gate failure — fix the root cause. mypy runs in `strict` mode.
+- A gate-config change (e.g. ruff settings) is its own `chore:` commit, never bundled with feature work.
+
+## Architecture in one screen
+
+Layers under `src/finance_web_app/`, with a **strict one-directional dependency rule** (full table in
+`docs/ARCHITECTURE.md`). A request walks each layer once:
+
+```
+web/blueprints  →  web/forms  →  application/services  →  core/contracts (Protocols)  →  infrastructure/persistence (SQLite)
+                                          ↓
+                                   web/rendering   (shapes template context + JSON; presentation only)
+```
+
+Hard boundary rules that span files (a PR violating these fails review):
+
+- A **service never imports `infrastructure.persistence`**. It takes a Protocol-typed repo in its constructor.
+- A **blueprint never calls a repository directly** — always through a service.
+- **`core/runtime/container.py` is the only seam** allowed to import both a `core/contracts` Protocol and a
+  concrete `infrastructure/persistence` class. It is plain factory wiring, not a DI framework.
+- **`domain/` is a leaf** (stdlib only). No value object saves itself or queries siblings.
+- Output shaping (template context, JSON) lives **only** in `web/rendering`.
+- There is deliberately **no command/orchestrator layer**. Don't add one unless one request genuinely
+  spans multiple services — and document why.
+
+## Invariants that are easy to get wrong (encoded once, on purpose)
+
+- **Money is integer pence.** `Money` wraps a `Decimal`; repositories convert to/from `int` at the
+  persistence boundary (`Money.pence()` / `Money.from_pence`). The DB column is `INTEGER` — never a float.
+- **Months are 1-indexed (1–12) end to end** — URLs, Python, JSON. No `month - 1` anywhere except inside
+  `EffectivePeriod` itself.
+- **One date-effective predicate:** `EffectivePeriod.covers_month(year, month)`. Used identically for
+  budgets, commitments, and income — no per-resource copy. "Starts mid-month" counts as effective for the
+  whole month. (Expenses use a separate stricter `date.year/month ==` helper.)
+- **Recurrence firing derives from the record's own `effective_from`** via `Recurrence.fires_on(when, effective_from)`
+  in `domain/recurrence.py`. There are **no `day_of_week`/`day_of_month` columns**. Services call the enum
+  method; they never `match` on the enum themselves.
+- **Enum member *names* (`ONCE_ONLY`, …) are what's stored** in the DB and the schema `CHECK` set. Human
+  display text is mapped in `web/rendering`, never persisted.
+- **Chart data is computed server-side and embedded** in the page as `<script type="application/json">`,
+  not fetched via AJAX. Aggregation happens in services, never in JavaScript. `web/blueprints/api.py`
+  exists only for genuine post-paint refetches (the expenses category filter), and returns data already
+  shaped by a service. **JSON response shapes are public contract — changing one is a MAJOR SemVer bump.**
+
+## Process rules with teeth
+
+- **MANDATORY: commits carry no authoring notes.** Commit messages and PR bodies must contain **no**
+  `Co-Authored-By` trailers, no "Generated with Claude Code" lines, no tool/agent attribution of any kind.
+  The message is the change and its rationale — nothing else. This overrides any default attribution
+  behavior. No exceptions.
+- **No new dependency without explicit user approval** — Python *or* frontend (CDN/npm/vendored), runtime
+  *or* dev. Only `flask` (runtime) and `ruff`/`pytest`/`mypy` (dev) are pre-approved. Vendored frontend is
+  fixed at Bootstrap 4, Chart.js, jQuery, Font Awesome. New requests get logged in `docs/ROADMAP.md`'s
+  decision register (see open decisions D-001…D-006, several gated on auth).
+- **Every behavior change ships with tests.** See the change-to-test mapping table in `docs/DEVELOPMENT.md`
+  (e.g. service tests use in-memory fake repos implementing the Protocol; bug fixes need a test that fails
+  before and passes after).
+- **Parameterised SQL only** — every `execute()` uses placeholders; ruff `S` rules catch f-string SQL.
+- **Conventional Commits** (`feat:`/`fix:`/`refactor:`/`test:`/`docs:`/`chore:`/`perf:`). Assess SemVer
+  impact before committing; user-facing changes need a `CHANGELOG.md` entry, and a version bump in
+  `pyproject.toml` + annotated tag follows the mandatory ordered workflow in `docs/DEVELOPMENT.md`.
+- **Out of scope for v1.0.0:** auth, multi-user isolation, multi-currency, timezones, CSV export. A `user`
+  table is scaffold-only — no route touches it. Don't build "ghost" features.
