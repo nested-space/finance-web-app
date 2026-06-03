@@ -6,9 +6,19 @@ This file does not contain coding rules or operational instructions. If you find
 
 ## Current state
 
-Greenfield. No application code has been written yet. This documentation suite — `README.md`, `ARCHITECTURE.md`, `OPERATIONS.md`, `DEVELOPMENT.md`, this file, and `CHANGELOG.md` — together form the design contract that subsequent commits will implement.
+Under construction. The documentation suite — `README.md`, `ARCHITECTURE.md`, `OPERATIONS.md`, `DEVELOPMENT.md`, this file, and `CHANGELOG.md` — remains the design contract; implementation proceeds in vertical-slice cycles (see "Build phasing" below).
+
+**Cycle 1 — Budgets walking skeleton (landed).** The Budgets resource is implemented end-to-end through every layer in `ARCHITECTURE.md` — domain value objects, the repository Protocol, a SQLite repository, schema bootstrap plus a forward-only migration runner, the service, form, blueprint, rendering, and templates — alongside the landing page, a 404 handler, the app factory + container, and the full test pyramid. The app runs (`flask --app finance_web_app.web run`) and persists budgets. The other three resources, the dashboard finance model, and the charts are not built yet.
 
 The reference behavior comes from a prior Node/Express/EJS/MongoDB implementation (not included in this repository). It serves as **a capability reference, not a runtime dependency** — the Python build documents the corrected behaviour directly (see `ARCHITECTURE.md` → "Bug-fix decisions") rather than relying on the old source being present.
+
+### Build phasing
+
+Implementation lands as vertical slices rather than all of v1.0.0 at once: the most complex piece (the finance model and the embedded-JSON chart contract) is built only after the layer stack has been proven against running code. This is sequencing, not a timeline; each cycle leaves `main` green against all four quality gates.
+
+- **C1 — Budgets walking skeleton (done).** One resource through every layer, plus app/DB/test scaffolding, so later resources are pattern-repetition. Tables only; ships a small custom stylesheet (`web/static/css/app.css`).
+- **C2 — Remaining resources.** Expenses, commitments, and income, including `Recurrence` and `Recurrence.fires_on` (`domain/recurrence.py`) and the `income_exception` child table. Still tables only.
+- **C3 — Finance model, insights, and charts.** `FinanceModelService`, `InsightsService`, the dashboard, and the per-page charts. Introduces the embedded-JSON delivery contract (`web/rendering/json_response.py`) and vendors the approved frontend assets (Bootstrap 4, jQuery, Font Awesome, Chart.js) with Bootstrap-based styling replacing the interim stylesheet.
 
 ## Capability scope for v1.0.0
 

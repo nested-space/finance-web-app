@@ -11,10 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial documentation suite for the Flask + SQLite rebuild: `README.md`, `docs/ARCHITECTURE.md`, `docs/OPERATIONS.md`, `docs/DEVELOPMENT.md`, `docs/ROADMAP.md`.
 - `pyproject.toml` with the canonical dependency declaration (`flask` runtime; `ruff`, `pytest`, `mypy` dev) and tool configuration for the mandatory quality gates.
+- Project package scaffolding under `src/finance_web_app/` and the `tests/` tree; `schema.sql` relocated to its canonical home at `src/finance_web_app/infrastructure/persistence/schema.sql`.
+- Budgets resource implemented end-to-end: domain value objects (`Money`, `EffectivePeriod`, `BudgetRecord`, `Category`), the `BudgetRepository` Protocol, a SQLite repository, `BudgetService`, the budget form, blueprint, rendering, and templates — create/list/delete with POST-redirect-GET.
+- Application runtime: app factory with a per-request SQLite connection, schema bootstrap and a forward-only migration runner, and request logging that records outcomes (method, path, status, duration) but never payloads; landing page and 404 handler.
+- Test pyramid covering the domain value objects, form validation, service use cases, the repository contract, the SQLite repository, the migration runner, and the web routes.
 
 ### Notes
 
-- No application code exists yet. The documentation suite above is the design contract that subsequent commits implement.
+- Implementation proceeds in vertical-slice cycles; this is Cycle 1 (Budgets walking skeleton). Expenses, commitments, income, the finance model, and charts are not yet built — see `docs/ROADMAP.md` -> "Build phasing".
+- Cycle 1 ships a small custom stylesheet (`web/static/css/app.css`); vendoring the approved frontend libraries (Bootstrap 4, jQuery, Font Awesome) and Chart.js is scheduled with the charts cycle.
+- This is pre-release work; the version remains `0.0.1` and no tag is cut (SemVer impact: none).
 - The design contract reflects a pre-build review: money is stored as integer pence (not `REAL`), date columns are ISO dates (not datetimes), recurrence firing derives from `effective_from` (no `day_of_*` columns), budgets carry a `category`, the command layer and the duplicate effective-period helper are removed, and chart data is embedded server-side rather than fetched as raw records.
 - The behaviour of a prior Node/Express/EJS/MongoDB implementation informs the feature set; that code is a capability reference and is not part of this repository.
 
