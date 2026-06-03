@@ -10,20 +10,20 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from finance_web_app.domain.records import BudgetRecord
+from finance_web_app.domain.records import Budget
 
 
 @runtime_checkable
 class BudgetRepository(Protocol):
-    def list_all(self) -> list[BudgetRecord]: ...
+    def list_all(self) -> list[Budget]: ...
 
-    def list_effective(self, year: int, month: int) -> list[BudgetRecord]: ...
+    def list_effective(self, year: int, month: int) -> list[Budget]: ...
 
-    def get(self, budget_id: int) -> BudgetRecord:
+    def get(self, budget_id: int) -> Budget:
         """Return one budget. Raises ``NotFoundError`` if absent."""
         ...
 
-    def create(self, record: BudgetRecord) -> BudgetRecord:
+    def create(self, record: Budget) -> Budget:
         """Persist a new budget, returning it with ``id`` set."""
         ...
 

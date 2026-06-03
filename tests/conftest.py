@@ -1,50 +1,45 @@
 """Shared test fixtures.
 
-Per ``docs/DEVELOPMENT.md`` -> "Fixtures": an in-memory schema connection and a
-temp-file path for repository tests, a Flask test client for web tests, and
-dict-backed fake repositories for service tests so they never touch SQL.
+An in-memory engine/session with the schema applied for repository tests, a Flask
+test client (wired to a temp-file DB, migrated by the app factory) for web tests,
+and dict-backed fake repositories for service tests so they never touch SQL
+(``docs/DEVELOPMENT.md`` -> "Fixtures").
 """
 
 from __future__ import annotations
 
-import sqlite3
 from collections.abc import Iterator
-from dataclasses import replace
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 from flask.testing import FlaskClient
+from sqlalchemy import Engine
+from sqlmodel import Session, SQLModel
 
 from finance_web_app.application.services.budget_service import BudgetService
 from finance_web_app.core.contracts.errors import NotFoundError
 from finance_web_app.core.runtime.app_factory import create_app
-from finance_web_app.domain.effective_period import EffectivePeriod
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import BudgetRecord, Category
-from finance_web_app.infrastructure.persistence.bootstrap import ensure_schema
-from finance_web_app.infrastructure.persistence.connection import connect
+from finance_web_app.domain.records import Budget, Category
+from finance_web_app.infrastructure.persistence.engine import make_engine, make_session
 
 
 @pytest.fixture
-def in_memory_sqlite() -> Iterator[sqlite3.Connection]:
-    conn = connect(":memory:")
-    ensure_schema(conn)
+def engine() -> Iterator[Engine]:
+    eng = make_engine(":memory:")
+    SQLModel.metadata.create_all(eng)
     try:
-        yield conn
+        yield eng
     finally:
-        conn.close()
+        eng.dispose()
 
 
 @pytest.fixture
-def tmp_sqlite_path(tmp_path: Path) -> Path:
-    db_path = tmp_path / "finance.db"
-    conn = connect(db_path)
-    try:
-        ensure_schema(conn)
-    finally:
-        conn.close()
-    return db_path
+def session(engine: Engine) -> Iterator[Session]:
+    with make_session(engine) as db_session:
+        yield db_session
 
 
 @pytest.fixture
@@ -58,26 +53,26 @@ class FakeBudgetRepository:
     """In-memory ``BudgetRepository`` for service tests."""
 
     def __init__(self) -> None:
-        self._rows: dict[int, BudgetRecord] = {}
+        self._rows: dict[int, Budget] = {}
         self._next_id = 1
 
-    def list_all(self) -> list[BudgetRecord]:
+    def list_all(self) -> list[Budget]:
         return [self._rows[key] for key in sorted(self._rows)]
 
-    def list_effective(self, year: int, month: int) -> list[BudgetRecord]:
+    def list_effective(self, year: int, month: int) -> list[Budget]:
         return [b for b in self.list_all() if b.period.covers_month(year, month)]
 
-    def get(self, budget_id: int) -> BudgetRecord:
+    def get(self, budget_id: int) -> Budget:
         try:
             return self._rows[budget_id]
         except KeyError:
             raise NotFoundError("budget", budget_id) from None
 
-    def create(self, record: BudgetRecord) -> BudgetRecord:
-        stored = replace(record, id=self._next_id)
-        self._rows[self._next_id] = stored
+    def create(self, record: Budget) -> Budget:
+        record.id = self._next_id
+        self._rows[self._next_id] = record
         self._next_id += 1
-        return stored
+        return record
 
     def delete(self, budget_id: int) -> None:
         if budget_id not in self._rows:
@@ -100,11 +95,11 @@ def seeded_repositories(
     fake_budget_repository: FakeBudgetRepository,
 ) -> dict[str, FakeBudgetRepository]:
     fake_budget_repository.create(
-        BudgetRecord(
+        Budget(
             name="Groceries",
-            quantity=Money.from_pence(20000),
+            quantity=Money(Decimal("200.00")),
             category=Category.GROCERIES,
-            period=EffectivePeriod(from_date=date(2026, 1, 1)),
+            effective_from=date(2026, 1, 1),
         )
     )
     return {"budgets": fake_budget_repository}

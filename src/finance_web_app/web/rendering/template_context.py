@@ -7,7 +7,7 @@ The single home for mapping domain values to display text -- in particular the
 
 from __future__ import annotations
 
-from finance_web_app.domain.records import BudgetRecord, Category
+from finance_web_app.domain.records import Budget, Category
 
 CATEGORY_LABELS: dict[Category, str] = {
     Category.OCCASIONAL: "Occasional",
@@ -25,7 +25,7 @@ def category_choices() -> list[tuple[str, str]]:
     return [(category.name, CATEGORY_LABELS[category]) for category in Category]
 
 
-def budgets_page_context(budgets: list[BudgetRecord]) -> dict[str, object]:
+def budgets_page_context(budgets: list[Budget]) -> dict[str, object]:
     """Shape the budgets list into the template context for ``budgets.html``."""
     return {
         "budgets": [_budget_row(budget) for budget in budgets],
@@ -33,7 +33,7 @@ def budgets_page_context(budgets: list[BudgetRecord]) -> dict[str, object]:
     }
 
 
-def _budget_row(budget: BudgetRecord) -> dict[str, object]:
+def _budget_row(budget: Budget) -> dict[str, object]:
     stop = budget.period.stop_date
     return {
         "id": budget.id,

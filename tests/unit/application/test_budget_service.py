@@ -10,7 +10,7 @@ from finance_web_app.application.services.budget_service import BudgetService
 from finance_web_app.core.contracts.errors import NotFoundError, ValidationError
 from finance_web_app.domain.effective_period import EffectivePeriod
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import BudgetRecord, Category
+from finance_web_app.domain.records import Budget, Category
 
 pytestmark = pytest.mark.unit
 
@@ -20,7 +20,7 @@ def _create(
     *,
     name: str = "Groceries",
     from_date: date = date(2026, 6, 1),
-) -> BudgetRecord:
+) -> Budget:
     return service.create(
         name=name,
         quantity=Money.from_pence(20000),

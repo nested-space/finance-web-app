@@ -1,16 +1,18 @@
-"""Money value object.
+"""Money value object and its persistence type.
 
-A ``Money`` wraps a non-negative ``Decimal`` with pence precision. It is the
-single arithmetic type for amounts in the domain; the persistence layer converts
-to and from integer pence at its boundary (``pence`` / ``from_pence``) so the
-database never stores a float. See ``docs/ARCHITECTURE.md`` -> "Domain value
-objects" and ``docs/OPERATIONS.md`` -> "Data layout".
+``Money`` wraps a non-negative ``Decimal`` with pence precision. ``MoneyPence`` is
+the SQLAlchemy type that stores it as ``INTEGER`` minor units, so the database
+never holds a float (``docs/ARCHITECTURE.md`` -> "Domain value objects",
+``docs/OPERATIONS.md`` -> "Data layout").
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+
+from sqlalchemy import Dialect, Integer
+from sqlalchemy.types import TypeDecorator
 
 _PENCE = Decimal("0.01")
 
@@ -31,7 +33,6 @@ class Money:
         normalised = self.amount.quantize(_PENCE)
         if normalised != self.amount:
             raise ValueError("Money supports at most two decimal places")
-        # Store the canonical two-dp form (e.g. "1.5" -> "1.50").
         object.__setattr__(self, "amount", normalised)
 
     @classmethod
@@ -59,3 +60,16 @@ class Money:
 
     def __str__(self) -> str:
         return f"{self.amount:.2f}"
+
+
+class MoneyPence(TypeDecorator[Money]):
+    """SQLAlchemy column type: persist ``Money`` as ``INTEGER`` pence."""
+
+    impl = Integer
+    cache_ok = True
+
+    def process_bind_param(self, value: Money | None, dialect: Dialect) -> int | None:
+        return None if value is None else value.pence()
+
+    def process_result_value(self, value: int | None, dialect: Dialect) -> Money | None:
+        return None if value is None else Money.from_pence(value)

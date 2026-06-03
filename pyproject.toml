@@ -21,6 +21,8 @@ classifiers = [
 ]
 dependencies = [
     "flask>=3.0",
+    "sqlmodel>=0.0.38",
+    "alembic>=1.13",
 ]
 
 [project.optional-dependencies]
@@ -43,8 +45,9 @@ include = ["finance_web_app*"]
 
 [tool.setuptools.package-data]
 finance_web_app = [
-    "infrastructure/persistence/schema.sql",
-    "infrastructure/persistence/migrations/*.sql",
+    "migrations/*.py",
+    "migrations/*.mako",
+    "migrations/versions/*.py",
     "web/templates/*.html",
     "web/static/css/*.css",
 ]
@@ -53,6 +56,8 @@ finance_web_app = [
 line-length = 100
 src = ["src", "tests"]
 target-version = "py311"
+# Alembic env + generated migration scripts are boilerplate; don't lint/format them.
+extend-exclude = ["src/finance_web_app/migrations"]
 
 [tool.ruff.lint]
 select = [
@@ -96,7 +101,14 @@ warn_unreachable = true
 warn_unused_ignores = true
 show_error_codes = true
 files = ["src", "tests"]
+# Alembic's env.py and generated migration scripts are boilerplate, not
+# hand-maintained typed code; exclude them rather than annotate generated files.
+exclude = ['src/finance_web_app/migrations/']
 
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "alembic.*"
+ignore_missing_imports = true

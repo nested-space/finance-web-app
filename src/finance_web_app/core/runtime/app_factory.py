@@ -1,10 +1,11 @@
 """Application factory.
 
-Builds the Flask app: resolves configuration from the environment, bootstraps
-the database, wires the request-scoped connection lifecycle, registers
-blueprints and error handlers, and installs request logging that records
-outcomes but never payloads (``docs/OPERATIONS.md`` -> "Environment variables",
-"Schema and migrations", "Observability").
+Builds the Flask app: resolves configuration from the environment, applies
+pending Alembic migrations, creates the SQLAlchemy engine, wires the
+request-scoped session lifecycle, registers blueprints and error handlers, and
+installs request logging that records outcomes but never payloads
+(``docs/OPERATIONS.md`` -> "Environment variables", "Schema and migrations",
+"Observability").
 """
 
 from __future__ import annotations
@@ -16,9 +17,9 @@ from pathlib import Path
 
 from flask import Flask, Response, g, request
 
-from finance_web_app.core.runtime.container import close_connection
-from finance_web_app.infrastructure.persistence.bootstrap import ensure_schema
-from finance_web_app.infrastructure.persistence.connection import connect
+from finance_web_app.core.runtime.container import close_session
+from finance_web_app.infrastructure.persistence.engine import make_engine
+from finance_web_app.infrastructure.persistence.migrate import upgrade_to_head
 
 DEFAULT_DB_PATH = "./data/finance.db"
 
@@ -30,16 +31,17 @@ def create_app(db_path: str | None = None) -> Flask:
 
     app = Flask("finance_web_app.web", template_folder="templates", static_folder="static")
     resolved_db = db_path or os.environ.get("FINANCE_DB_PATH", DEFAULT_DB_PATH)
-    app.config["DB_PATH"] = resolved_db
+    if resolved_db != ":memory:":
+        Path(resolved_db).parent.mkdir(parents=True, exist_ok=True)
 
-    _bootstrap_database(resolved_db)
+    upgrade_to_head(resolved_db)
+    app.config["DB_ENGINE"] = make_engine(resolved_db)
 
-    app.teardown_appcontext(close_connection)
+    app.teardown_appcontext(close_session)
     _register_request_logging(app)
 
     # Imported here, not at module top, so importing this module does not pull in
-    # the web package (whose __init__ re-exports create_app) -- which would be a
-    # circular import.
+    # the web package (whose __init__ re-exports create_app) -- a circular import.
     from finance_web_app.web.blueprints import budgets, home
     from finance_web_app.web.blueprints.errors import register_error_handlers
 
@@ -54,16 +56,6 @@ def _configure_logging() -> None:
     level_name = os.environ.get("FINANCE_LOG_LEVEL", "INFO").upper()
     level = getattr(logging, level_name, logging.INFO)
     logging.basicConfig(level=level)
-
-
-def _bootstrap_database(db_path: str) -> None:
-    if db_path != ":memory:":
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    connection = connect(db_path)
-    try:
-        ensure_schema(connection)
-    finally:
-        connection.close()
 
 
 def _register_request_logging(app: Flask) -> None:
