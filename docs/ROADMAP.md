@@ -1,0 +1,107 @@
+# Roadmap
+
+This document describes the product direction for `finance_web_app`. Audience: stakeholders deciding what to fund, contributors deciding what to pick up, reviewers deciding what is in or out of scope. For *how the layers fit together*, see `ARCHITECTURE.md`. For *the engineering process*, see `DEVELOPMENT.md`.
+
+This file does not contain coding rules or operational instructions. If you find a normative "you must do X" statement here, it is misplaced — move it to the document whose contract owns that concern.
+
+## Current state
+
+Greenfield. No application code has been written yet. This documentation suite — `README.md`, `ARCHITECTURE.md`, `OPERATIONS.md`, `DEVELOPMENT.md`, this file, and `CHANGELOG.md` — together form the design contract that subsequent commits will implement.
+
+The reference behavior comes from a prior Node/Express/EJS/MongoDB implementation (not included in this repository). It serves as **a capability reference, not a runtime dependency** — the Python build documents the corrected behaviour directly (see `ARCHITECTURE.md` → "Bug-fix decisions") rather than relying on the old source being present.
+
+## Capability scope for v1.0.0
+
+Version 1.0.0 ships when all of the below are true and the quality gates pass.
+
+### Pages
+
+| URL | What it does |
+| --- | --- |
+| `/` | Landing page with a single working button: "Finance". |
+| `/finance` | Monthly dashboard for the current month: insights card, finance-model line chart, income-vs-outgoings bar chart, budget breakdown pie, commitments-by-category pie. |
+| `/finance/budgets` | Create-budget form, three charts (spend-vs-budget bar, breakdown pie, 6-month history line), table of current budgets. |
+| `/finance/expenses` | Create-expense form, category-filterable spend-vs-budget line chart, breakdown pie, 6-month history line, table of current-month expenses. |
+| `/finance/commitments` | Create-commitment form (with conditional length fields hidden when "Once Only"), table grouped by recurrence. |
+| `/finance/income` | Create-income form, table of current income streams. |
+| `*` | 404 page. |
+
+### Resources
+
+Four CRUD resources, all unscoped (single-user). Schema documented in `ARCHITECTURE.md` and `OPERATIONS.md`.
+
+- Budgets — `name`, `quantity`, `category`, `effective_from`, `effective_stop`. The `category` ties a budget to the expense category it caps, so spend-vs-budget is a real comparison.
+- Expenses — `name`, `quantity`, `date`, `category`, optional `description`.
+- Commitments — `name`, `quantity`, `category`, `recurrence`, `effective_from`, optional `effective_stop`. When the commitment fires is derived from `effective_from` (no separate day-of-week/month fields).
+- Income — same as commitments (minus `category`, plus `Quarterly`) with a one-to-many `income_exception` child table.
+
+Categories for expenses and commitments are a fixed dropdown set, matching the reference implementation:
+
+- Expenses: `Occasional`, `Groceries`, `Clothing`, `Entertainment`, `Petrol`, `Kids`, `Christmas`.
+- Commitments: `Occasional`, `Groceries`, `Kids`, `Entertainment`, `Clothing`.
+
+### Persistence
+
+Single SQLite file. Forward-only migrations. WAL journal mode. No external database service.
+
+### Frontend
+
+Server-rendered Jinja templates for all tables, summaries, and form responses. Chart.js used only for canvas visualisations on the dashboard, budgets, and expenses pages. Bootstrap 4, jQuery, and Font Awesome vendored as static assets. POST-redirect-GET for create and delete actions.
+
+### Out of v1.0.0
+
+- Authentication.
+- Multi-user data isolation.
+- Time zone localisation.
+- Multi-currency support.
+- CSV export, alerts, integrations.
+- Any frontend or Python dependency not already named.
+
+## Scaffold-only seams
+
+These exist in the codebase to keep the eventual addition cheap, but are not wired into any user-facing flow in v1.0.0. They have **no functional behavior** until separately scoped work happens.
+
+- **User account table.** A `user` table appears in the SQLite schema with `id`, `username`, `password_hash`, `created`. No route reads from or writes to it. No password hashing helper is implemented in v1.0.0 — when auth is scoped, the implementer chooses a hashing library, subject to dependency approval (see decision register below).
+
+No other "ghost" features are permitted. A capability is either *in* v1.0.0 or *out* — partial implementations do not earn their place in `main`.
+
+## Future priorities
+
+The list below is not a commitment to a timeline. It describes the kind of work that would plausibly land after v1.0.0, in rough priority order. Pulling any item forward requires its own scope discussion.
+
+1. **Authentication and session management.** Wire the existing `user` table into a login flow. Add `user_id` foreign keys to all resource tables in a forward migration. Per-user data isolation in every repository query.
+2. **CSRF protection.** Required as soon as authenticated sessions exist. Approach (hand-rolled token vs. a library) is in the decision register.
+3. **CSV export.** A per-resource "Download as CSV" link. Server-rendered, no JS.
+4. **Net-worth page.** Aggregates budgets, expenses, commitments, and income across multiple months. Requires extending `FinanceModelService` to span a date range, not a single month.
+5. **Budget alerts.** Notify when a category exceeds X% of its budget partway through the month. Requires a notification surface (initially: a banner on the dashboard).
+6. **Localisation.** Time zones, currency, and number formatting. Likely the largest single piece of post-v1.0.0 work.
+7. **Theming.** Replace the current Bootstrap 4 palette overrides with a small CSS variable set. No new dependencies.
+8. **Mobile-friendly forms.** The Bootstrap grid handles layout, but date pickers and number inputs deserve a second look on touch devices.
+
+## Non-goals
+
+The following are deliberately *not* on the roadmap. Adding them would change the shape of the product enough that we would treat the result as a different project.
+
+- **Banking-API integration** (Open Banking, Plaid, etc.). The app is a manual tracker by design.
+- **Multi-tenant SaaS hosting.** A single Python process backed by a single SQLite file is the deployment model.
+- **Native mobile clients** (iOS, Android, React Native, etc.). Responsive web only.
+- **Real-time collaboration.** Single-user app.
+- **Forecasting models beyond the linear projections in `FinanceModelService`.** Statistical or ML-based forecasts are out of scope.
+
+## Decision register
+
+Decisions that are *open* and require the user's explicit input before they can be resolved.
+
+| ID | Decision | Status | Notes |
+| --- | --- | --- | --- |
+| D-001 | Production WSGI runner (gunicorn vs. waitress vs. defer) | Open | Not needed for local dev. Resolve before first remote deploy. Adding a runner is a new runtime dependency and needs approval. |
+| D-002 | CSRF approach (Flask-WTF vs. hand-rolled token) | Open — gated on D-004 | Only relevant once authenticated sessions exist. |
+| D-003 | Bundle a seed-data SQL script for first-run? | Open | Convenience for local dev. No security implication. |
+| D-004 | Add Flask-WTF (or any form-handling library) at all? | Open | A new runtime dependency. **Requires user approval before introducing.** Until resolved, forms are hand-rolled. |
+| D-005 | Logging library — stdlib `logging` vs. `structlog` | Resolved (interim) | Default is stdlib for v1.0.0. Reopen if structured logs become necessary in production. |
+| D-006 | Password hashing library when auth is scoped | Open — gated on auth work | Candidates include `werkzeug.security` (already transitively available via Flask) and `bcrypt`. **Requires user approval before introducing a new dependency.** |
+| D-007 | Provide a seed-data fixture for tests? | Resolved | Yes — `tests/conftest.py` exposes a `seeded_repositories` fixture. No production seed yet (see D-003). |
+
+Every entry above maps to a rule, not a preference. The relevant rule is: **adding any frontend or Python dependency beyond the four named in `ARCHITECTURE.md` requires explicit user approval, recorded as a decision in this register.** A PR that introduces an undeclared dependency does not pass review.
+
+Closed decisions move out of the table once they have been recorded in `CHANGELOG.md`.
