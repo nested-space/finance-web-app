@@ -124,6 +124,7 @@ Response shapes match the service contracts in [`docs/ARCHITECTURE.md`](docs/ARC
 | Document | Audience |
 | --- | --- |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Contributors changing structural code |
+| [`docs/DESIGN.md`](docs/DESIGN.md) | Anyone touching templates or CSS — the mandatory brand design system |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Contributors writing or reviewing code |
 | [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Anyone running, deploying, or backing up an instance |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Stakeholders and contributors deciding what to pick up |

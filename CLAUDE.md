@@ -82,6 +82,20 @@ Hard boundary rules that span files (a PR violating these fails review):
   exists only for genuine post-paint refetches (the expenses category filter), and returns data already
   shaped by a service. **JSON response shapes are public contract — changing one is a MAJOR SemVer bump.**
 
+## Frontend design system (MANDATORY)
+
+`docs/DESIGN.md` is the binding visual contract; it overrides any framework default.
+Non-negotiables when touching templates or CSS:
+
+- **Slate Navy (`--brand #2D3F5C`) is the most prominent colour** and anchors every page (at minimum the nav bar). The landing/cover uses a full Slate Navy header panel; inner pages step down the **tint waterfall** (`--brand-tint` → `--surface` → `--wash`) rather than repeating full Slate Navy.
+- **Secondary palette (`--s1`…`--s5`) and all tints/shades are chart-only** — never backgrounds, never text. Tints step in 20% increments, 20–80%.
+- **Sharp edges (`border-radius: 0`) and 1px borders.** Professional/corporate feel.
+- **Inter only** (self-hosted in `web/static/fonts/`, no CDN): H1 ExtraLight/Light, sub-heads Light, intro Bold, body Regular. **Sentence case** headings; **text always left-aligned**; tight tracking (`-0.01em`).
+- **White space is required** — don't fill the page; panels breathe.
+- **At most four panels** per page on the 20-section grid.
+- Accessible contrast (WCAG AA) is mandatory; only approved colour combinations.
+- Tokens + components live in `web/static/css/app.css`. New frontend libraries/fonts still need approval per the asset boundary.
+
 ## Process rules with teeth
 
 - **MANDATORY: commits carry no authoring notes.** Commit messages and PR bodies must contain **no**

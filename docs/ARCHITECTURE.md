@@ -312,16 +312,14 @@ Consequences, and why this shape is fixed *before* the first build (changing a J
 
 ## Frontend asset boundary
 
-The application ships with four vendored UI libraries under `web/static/`:
+Visual design is governed by **`docs/DESIGN.md`** (the mandatory brand contract) and implemented as **custom CSS** in `web/static/css/app.css` — there is no CSS framework. The vendored frontend assets under `web/static/` are:
 
-- Bootstrap 4 (CSS framework)
-- Chart.js (canvas charting)
-- jQuery (DOM, AJAX)
-- Font Awesome (icons)
+- **Inter** — the self-hosted typeface (`web/static/fonts/*.woff2`, no CDN). The approved font.
+- **Chart.js** — canvas charting, to be vendored with the C3 charts cycle (the only place the secondary palette appears — see `DESIGN.md`).
 
-**Adding any other JavaScript or CSS library — vendored, CDN, or npm — requires explicit user approval.** This is a hard rule, not guidance. A PR that introduces a new frontend dependency without approval fails the boundary check in code review.
+**Adding any other JavaScript/CSS library or font — vendored, CDN, or npm — requires explicit user approval.** This is a hard rule, not guidance. A PR that introduces a new frontend dependency without approval fails the boundary check in code review.
 
-The same rule applies to new Python dependencies: anything beyond `flask` (runtime) and `ruff`/`pytest`/`mypy` (dev) needs approval. The decision register in `ROADMAP.md` tracks pending requests.
+The same rule applies to new Python dependencies: anything beyond `flask`, `sqlmodel`, and `alembic` (runtime) and `ruff`/`pytest`/`mypy` (dev) needs approval. The decision register in `ROADMAP.md` tracks requests.
 
 ## Out of scope (pointers into `ROADMAP.md`)
 

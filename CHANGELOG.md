@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Budgets resource implemented end-to-end: domain value objects (`Money`, `EffectivePeriod`, `BudgetRecord`, `Category`), the `BudgetRepository` Protocol, a SQLite repository, `BudgetService`, the budget form, blueprint, rendering, and templates — create/list/delete with POST-redirect-GET.
 - Application runtime: app factory with a per-request SQLite connection, schema bootstrap and a forward-only migration runner, and request logging that records outcomes (method, path, status, duration) but never payloads; landing page and 404 handler.
 - Test pyramid covering the domain value objects, form validation, service use cases, the repository contract, the SQLite repository, the migration runner, and the web routes.
+- Mandatory brand design system in `docs/DESIGN.md` (decision D-010): Slate Navy palette, sharp edges / 1px borders, panel + 20-section grid, white space, accessible colour combinations, and the secondary palette reserved for charts only. The frontend (`web/static/css/app.css` + templates) implements it — Slate Navy nav and tint waterfall — with the **Inter** typeface self-hosted under `web/static/fonts/` (no CDN).
 
 ### Changed
 
