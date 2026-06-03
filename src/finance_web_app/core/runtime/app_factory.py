@@ -42,11 +42,12 @@ def create_app(db_path: str | None = None) -> Flask:
 
     # Imported here, not at module top, so importing this module does not pull in
     # the web package (whose __init__ re-exports create_app) -- a circular import.
-    from finance_web_app.web.blueprints import budgets, home
+    from finance_web_app.web.blueprints import budgets, expenses, home
     from finance_web_app.web.blueprints.errors import register_error_handlers
 
     app.register_blueprint(home.bp)
     app.register_blueprint(budgets.bp)
+    app.register_blueprint(expenses.bp)
     register_error_handlers(app)
 
     return app

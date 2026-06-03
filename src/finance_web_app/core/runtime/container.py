@@ -12,8 +12,10 @@ from flask import current_app, g
 from sqlmodel import Session
 
 from finance_web_app.application.services.budget_service import BudgetService
+from finance_web_app.application.services.expense_service import ExpenseService
 from finance_web_app.infrastructure.persistence.budget_repository import SqlBudgetRepository
 from finance_web_app.infrastructure.persistence.engine import make_session
+from finance_web_app.infrastructure.persistence.expense_repository import SqlExpenseRepository
 
 
 def get_session() -> Session:
@@ -33,3 +35,7 @@ def close_session(_exception: BaseException | None = None) -> None:
 
 def get_budget_service() -> BudgetService:
     return BudgetService(SqlBudgetRepository(get_session()))
+
+
+def get_expense_service() -> ExpenseService:
+    return ExpenseService(SqlExpenseRepository(get_session()))

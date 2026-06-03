@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Expenses — finance_web_app{% endblock %}
+
+{% block content %}
+  <section class="panel panel--tint">
+    <h1>Expenses</h1>
+    <p class="lead">Record what you spend and review this month by category.</p>
+  </section>
+
+  {% if error %}
+    <div class="alert alert-danger" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <section class="panel">
+    <h2 class="panel-title">Add an expense</h2>
+    <form class="form" method="post" action="{{ url_for('expenses.create_expense') }}">
+      <label>
+        Name
+        <input type="text" name="name" required />
+      </label>
+      <label>
+        Amount
+        <input type="number" name="quantity" step="0.01" min="0" required />
+      </label>
+      <label>
+        Date
+        <input type="date" name="date" required />
+      </label>
+      <label>
+        Category
+        <select name="category" required>
+          {% for code, label in category_choices %}
+            <option value="{{ code }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Description
+        <textarea name="description" rows="2"></textarea>
+      </label>
+      <button class="btn btn-primary" type="submit">Add expense</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">This month's expenses</h2>
+    {% if expenses %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Amount</th>
+            <th>Category</th>
+            <th>Date</th>
+            <th>Description</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for expense in expenses %}
+            <tr>
+              <td>{{ expense.name }}</td>
+              <td>{{ expense.quantity }}</td>
+              <td>{{ expense.category }}</td>
+              <td>{{ expense.date }}</td>
+              <td>{{ expense.description }}</td>
+              <td>
+                <form
+                  method="post"
+                  action="{{ url_for('expenses.delete_expense', expense_id=expense.id) }}"
+                >
+                  <button class="btn-icon" type="submit" title="Delete" aria-label="Delete">
+                    🗑
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No expenses this month. Add one above.</p>
+    {% endif %}
+  </section>
+{% endblock %}

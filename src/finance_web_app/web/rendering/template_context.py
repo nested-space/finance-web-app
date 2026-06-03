@@ -7,7 +7,7 @@ The single home for mapping domain values to display text -- in particular the
 
 from __future__ import annotations
 
-from finance_web_app.domain.records import Budget, Category
+from finance_web_app.domain.records import Budget, Category, Expense
 
 CATEGORY_LABELS: dict[Category, str] = {
     Category.OCCASIONAL: "Occasional",
@@ -42,4 +42,23 @@ def _budget_row(budget: Budget) -> dict[str, object]:
         "category": CATEGORY_LABELS[budget.category],
         "effective_from": budget.period.from_date.isoformat(),
         "effective_stop": stop.isoformat() if stop is not None else "",
+    }
+
+
+def expenses_page_context(expenses: list[Expense]) -> dict[str, object]:
+    """Shape the expenses list into the template context for ``expenses.html``."""
+    return {
+        "expenses": [_expense_row(expense) for expense in expenses],
+        "category_choices": category_choices(),
+    }
+
+
+def _expense_row(expense: Expense) -> dict[str, object]:
+    return {
+        "id": expense.id,
+        "name": expense.name,
+        "quantity": str(expense.quantity),
+        "category": CATEGORY_LABELS[expense.category],
+        "date": expense.date.isoformat(),
+        "description": expense.description or "",
     }
