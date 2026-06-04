@@ -39,6 +39,14 @@ def test_delete_removes_row(flask_client: FlaskClient) -> None:
     assert b"No expenses this month" in flask_client.get("/finance/expenses").data
 
 
+def test_charts_payload_is_embedded(flask_client: FlaskClient) -> None:
+    flask_client.post("/finance/expenses", data=_valid())
+    page = flask_client.get("/finance/expenses").data
+    assert b'id="expenses-charts"' in page
+    assert b"chart-expense-curve" in page
+    assert b"expense-category-filter" in page
+
+
 def test_invalid_create_returns_400(flask_client: FlaskClient) -> None:
     resp = flask_client.post(
         "/finance/expenses", data={"name": "", "quantity": "x", "category": "GROCERIES"}

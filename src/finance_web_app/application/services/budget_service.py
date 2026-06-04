@@ -7,6 +7,8 @@ Protocol and domain types -- never on a concrete repository or on ``web``
 
 from __future__ import annotations
 
+from calendar import monthrange
+
 from finance_web_app.core.contracts.budget_repository import BudgetRepository
 from finance_web_app.core.contracts.errors import ValidationError
 from finance_web_app.domain.effective_period import EffectivePeriod
@@ -36,6 +38,28 @@ class BudgetService:
         for budget in self._budgets.list_effective(year, month):
             totals[budget.category] = totals.get(budget.category, 0) + budget.quantity.pence()
         return {category: Money.from_pence(pence) for category, pence in totals.items()}
+
+    def cumulative_allocation(
+        self, year: int, month: int, categories: set[Category] | None = None
+    ) -> list[Money]:
+        """Straight-line per-day cumulative budget for the selected categories.
+
+        The total cap is prorated evenly across the month (exact pence) and
+        accumulated -- the budget reference line on the expenses spend curve.
+        """
+        days_in_month = monthrange(year, month)[1]
+        caps = self.totals_by_category(year, month)
+        total_pence = sum(
+            money.pence()
+            for category, money in caps.items()
+            if categories is None or category in categories
+        )
+        running = 0
+        cumulative: list[Money] = []
+        for part in Money.from_pence(total_pence).split_evenly(days_in_month):
+            running += part.pence()
+            cumulative.append(Money.from_pence(running))
+        return cumulative
 
     def create(
         self,

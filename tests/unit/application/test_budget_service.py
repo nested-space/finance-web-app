@@ -73,3 +73,14 @@ def test_total_sums_caps(budget_service: BudgetService) -> None:
     _create(budget_service, name="A")  # £200
     _create(budget_service, name="B")  # £200
     assert budget_service.total(2026, 6) == Money.from_pence(40000)
+
+
+def test_cumulative_allocation_straight_line(budget_service: BudgetService) -> None:
+    _create(budget_service)  # GROCERIES £200, effective June (30 days)
+    allocation = budget_service.cumulative_allocation(2026, 6)
+    assert len(allocation) == 30
+    assert allocation[-1] == Money.from_pence(20000)  # ends at the total cap
+    # A category with no budget contributes nothing.
+    assert budget_service.cumulative_allocation(2026, 6, {Category.CLOTHING})[
+        -1
+    ] == Money.from_pence(0)

@@ -15,10 +15,36 @@ from finance_web_app.domain.monthly_model import MonthlyModel
 from finance_web_app.domain.records import Category
 from finance_web_app.web.rendering.json_response import (
     budgets_charts_payload,
+    expenses_charts_payload,
+    expenses_curve_payload,
     finance_dashboard_payload,
 )
 
 pytestmark = pytest.mark.unit
+
+
+def test_expenses_curve_and_charts_payload() -> None:
+    curve = expenses_curve_payload(
+        [Money.from_pence(0), Money.from_pence(1000)],
+        [Money.from_pence(500), Money.from_pence(1000)],
+    )
+    assert curve == {
+        "labels": [1, 2],
+        "spend_cumulative": [0.0, 10.0],
+        "budget_cumulative": [5.0, 10.0],
+    }
+    payload = expenses_charts_payload(
+        2026,
+        6,
+        curve,
+        {Category.GROCERIES: Money.from_pence(1000)},
+        (["May 2026", "Jun 2026"], [Money.from_pence(500), Money.from_pence(1500)]),
+    )
+    data: Any = json.loads(json.dumps(payload))
+    assert data["year"] == 2026 and data["month"] == 6
+    assert data["current_month"]["spend_cumulative"] == [0.0, 10.0]
+    assert data["breakdown"] == {"labels": ["Groceries"], "values": [10.0]}
+    assert data["history"]["spend_cumulative"] == [5.0, 15.0]
 
 
 def test_budgets_charts_payload_shapes_and_serialises() -> None:

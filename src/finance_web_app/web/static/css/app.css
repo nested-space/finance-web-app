@@ -428,3 +428,30 @@ a {
 canvas {
   max-width: 100%;
 }
+
+.category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  border: 1px solid var(--line);
+  padding: 0.5rem 0.75rem;
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.category-filter legend {
+  padding: 0 0.4rem;
+  color: var(--muted);
+}
+
+.category-filter label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chart-pie {
+  margin-top: 1.5rem;
+  max-width: 420px;
+}

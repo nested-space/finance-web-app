@@ -59,6 +59,34 @@ def _category_series(totals: dict[Category, Money]) -> dict[str, object]:
     }
 
 
+def expenses_curve_payload(
+    spend_cumulative: list[Money], budget_cumulative: list[Money]
+) -> dict[str, object]:
+    """The two-line spend curve (shared by the embedded default and the api)."""
+    return {
+        "labels": list(range(1, len(spend_cumulative) + 1)),
+        "spend_cumulative": [_pounds(m) for m in spend_cumulative],
+        "budget_cumulative": [_pounds(m) for m in budget_cumulative],
+    }
+
+
+def expenses_charts_payload(
+    year: int,
+    month: int,
+    curve: dict[str, object],
+    breakdown_totals: dict[Category, Money],
+    history: tuple[list[str], list[Money]],
+) -> dict[str, object]:
+    labels, spend_cumulative = history
+    return {
+        "year": year,
+        "month": month,
+        "current_month": curve,
+        "breakdown": _category_series(breakdown_totals),
+        "history": {"labels": labels, "spend_cumulative": [_pounds(m) for m in spend_cumulative]},
+    }
+
+
 def budgets_charts_payload(
     spend_by_category: dict[Category, Money],
     cap_by_category: dict[Category, Money],
