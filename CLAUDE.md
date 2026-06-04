@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-The **Budgets** resource is implemented end-to-end (Cycle 1), on a **SQLModel + Alembic** persistence
-stack. Expenses, commitments, income, the finance model, and charts are not built yet — they repeat the
-established patterns (see `docs/ROADMAP.md` → "Build phasing"). The app is the Flask + SQLite rebuild of a
+All four resources (budgets, expenses, commitments, income) are implemented end-to-end on a **SQLModel +
+Alembic** stack, plus the **`/finance` dashboard** (finance model, insights, four Chart.js charts, month
+navigation). Remaining: the per-page budgets/expenses charts (C3b) — see `docs/ROADMAP.md` → "Build phasing". The app is the Flask + SQLite rebuild of a
 prior Node/Express/EJS/MongoDB app (that old code is a *capability reference only*, not in this repo).
 
 The docs are authoritative and have a precedence order:

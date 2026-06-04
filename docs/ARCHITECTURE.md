@@ -243,12 +243,13 @@ class FinanceModelService:
 - `income_per_day: list[Money]` — sum of all income that "fires" on each day (after applying exceptions).
 - `commitments_per_day: list[Money]`
 - `expenses_per_day: list[Money]`
-- `budget_allocated_per_day: list[Money]` — budgets prorated linearly across the days they cover.
+- `budget_allocated_per_day: list[Money]` — budgets prorated *to exact pence* across the month via `Money.split_evenly` (no rounding drift). Budgets are a planning overlay and are **not** part of the cash balance.
 
-Plus derived helpers:
+Plus derived helpers. **Balances are signed `Decimal`, not `Money`** — a running balance can go negative and `Money` is non-negative by invariant:
 
-- `cumulative_balance() -> list[Money]` — running total of income minus outgoings.
-- `subtractive_balance(starting: Money) -> list[Money]` — running balance starting from a given amount.
+- `net_per_day() -> list[Decimal]` — `income − commitments − expenses` per day.
+- `cumulative_balance() -> list[Decimal]` — running net from zero (the dashboard's finance-model line).
+- `subtractive_balance(starting: Money) -> list[Decimal]` — running net from a given opening amount (so `subtractive(0)` == `cumulative`). No opening-balance UI in v1.0.0; the helper exists for a future feature.
 
 A recurring record "fires" on a date when `Recurrence.fires_on(when, effective_from)` returns `True`. Implementation lives in `domain/recurrence.py` so the predicate is testable without touching the service. Firing is derived from the record's own `effective_from` — there are no separate `day_of_*` inputs to store or validate. The Recurrence enum encapsulates the rules:
 
@@ -315,7 +316,7 @@ Consequences, and why this shape is fixed *before* the first build (changing a J
 Visual design is governed by **`docs/DESIGN.md`** (the mandatory brand contract) and implemented as **custom CSS** in `web/static/css/app.css` — there is no CSS framework. The vendored frontend assets under `web/static/` are:
 
 - **Inter** — the self-hosted typeface (`web/static/fonts/*.woff2`, no CDN). The approved font.
-- **Chart.js** — canvas charting, to be vendored with the C3 charts cycle (the only place the secondary palette appears — see `DESIGN.md`).
+- **Chart.js** — canvas charting, self-hosted at `web/static/vendor/chartjs/` (the only place the secondary palette appears — see `DESIGN.md`). Driven by `web/static/js/dashboard.js`, which reads the embedded JSON and never aggregates.
 
 **Adding any other JavaScript/CSS library or font — vendored, CDN, or npm — requires explicit user approval.** This is a hard rule, not guidance. A PR that introduces a new frontend dependency without approval fails the boundary check in code review.
 
