@@ -15,6 +15,7 @@ from finance_web_app.application.services.budget_service import BudgetService
 from finance_web_app.application.services.commitment_service import CommitmentService
 from finance_web_app.application.services.expense_service import ExpenseService
 from finance_web_app.application.services.finance_model_service import FinanceModelService
+from finance_web_app.application.services.history_service import HistoryService
 from finance_web_app.application.services.income_service import IncomeService
 from finance_web_app.application.services.insights_service import InsightsService
 from finance_web_app.infrastructure.persistence.budget_repository import SqlBudgetRepository
@@ -72,3 +73,7 @@ def get_insights_service() -> InsightsService:
         SqlExpenseRepository(session),
         SqlBudgetRepository(session),
     )
+
+
+def get_history_service() -> HistoryService:
+    return HistoryService(get_budget_service(), get_expense_service())

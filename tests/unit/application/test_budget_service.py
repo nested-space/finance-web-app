@@ -67,3 +67,9 @@ def test_totals_by_category_sums_per_category(budget_service: BudgetService) -> 
     _create(budget_service, name="B")  # GROCERIES, £200
     totals = budget_service.totals_by_category(2026, 6)
     assert totals == {Category.GROCERIES: Money.from_pence(40000)}
+
+
+def test_total_sums_caps(budget_service: BudgetService) -> None:
+    _create(budget_service, name="A")  # £200
+    _create(budget_service, name="B")  # £200
+    assert budget_service.total(2026, 6) == Money.from_pence(40000)

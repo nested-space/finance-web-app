@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
 from datetime import date
 
 from finance_web_app.core.contracts.errors import ValidationError
@@ -19,6 +20,35 @@ class ExpenseService:
 
     def list_effective(self, year: int, month: int) -> list[Expense]:
         return self._expenses.list_effective(year, month)
+
+    def total(self, year: int, month: int) -> Money:
+        """Total expense spend for the month."""
+        return Money.from_pence(
+            sum(e.quantity.pence() for e in self._expenses.list_effective(year, month))
+        )
+
+    def totals_by_category(self, year: int, month: int) -> dict[Category, Money]:
+        """Sum the month's expense spend per category (for the breakdown pie)."""
+        totals: dict[Category, int] = {}
+        for expense in self._expenses.list_effective(year, month):
+            totals[expense.category] = totals.get(expense.category, 0) + expense.quantity.pence()
+        return {category: Money.from_pence(pence) for category, pence in totals.items()}
+
+    def cumulative_spend(
+        self, year: int, month: int, categories: set[Category] | None = None
+    ) -> list[Money]:
+        """Per-day running spend through the month, optionally filtered to categories."""
+        days_in_month = monthrange(year, month)[1]
+        daily = [0] * days_in_month
+        for expense in self._expenses.list_effective(year, month):
+            if categories is None or expense.category in categories:
+                daily[expense.date.day - 1] += expense.quantity.pence()
+        running = 0
+        cumulative: list[Money] = []
+        for pence in daily:
+            running += pence
+            cumulative.append(Money.from_pence(running))
+        return cumulative
 
     def create(
         self,
