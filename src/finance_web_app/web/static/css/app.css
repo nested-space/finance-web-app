@@ -248,6 +248,9 @@ a {
     grid-template-columns: 1fr 1fr 1fr;
   }
 }
+.split > div > h3 {
+  text-align: center;
+}
 
 /* ---- Buttons (sharp, 1px border) -------------------------------------- */
 .btn {
@@ -294,6 +297,21 @@ a {
 }
 .btn-icon:hover {
   color: var(--danger);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--line);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  margin-left: auto;
+  align-self: center;
+}
+.btn-ghost:hover {
+  color: var(--brand);
+  border-color: var(--brand);
 }
 
 /* ---- Forms ------------------------------------------------------------ */
@@ -401,6 +419,23 @@ a {
 .month-nav {
   display: flex;
   gap: 0.75rem;
+}
+
+/* Icon-only "current month" button — centre the SVG, size it to the text. */
+.nav-home {
+  display: inline-flex;
+  align-items: center;
+}
+.nav-home svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+/* Disabled nav link — stays in place (so Prev doesn't shift) and is inert. */
+.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: default;
 }
 
 .insights {

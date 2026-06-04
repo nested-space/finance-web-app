@@ -27,11 +27,16 @@ class ExpenseService:
             sum(e.quantity.pence() for e in self._expenses.list_effective(year, month))
         )
 
-    def totals_by_category(self, year: int, month: int) -> dict[Category, Money]:
+    def totals_by_category(
+        self, year: int, month: int, categories: set[Category] | None = None
+    ) -> dict[Category, Money]:
         """Sum the month's expense spend per category (for the breakdown pie)."""
         totals: dict[Category, int] = {}
         for expense in self._expenses.list_effective(year, month):
-            totals[expense.category] = totals.get(expense.category, 0) + expense.quantity.pence()
+            if categories is None or expense.category in categories:
+                totals[expense.category] = (
+                    totals.get(expense.category, 0) + expense.quantity.pence()
+                )
         return {category: Money.from_pence(pence) for category, pence in totals.items()}
 
     def cumulative_spend(

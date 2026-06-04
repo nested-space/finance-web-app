@@ -15,10 +15,10 @@ _VALID = {
 }
 
 
-def test_landing_page_links_to_finance(flask_client: FlaskClient) -> None:
+def test_landing_page_redirects_to_dashboard(flask_client: FlaskClient) -> None:
     resp = flask_client.get("/")
-    assert resp.status_code == 200
-    assert b"Finance" in resp.data
+    assert resp.status_code == 302
+    assert "/finance" in resp.headers["Location"]
 
 
 def test_budgets_page_starts_empty(flask_client: FlaskClient) -> None:

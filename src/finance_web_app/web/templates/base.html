@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{% block title %}finance_web_app{% endblock %}</title>
+    <title>{% block title %}Personal Finances{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="{{ url_for('home.index') }}">finance_web_app</a>
+      <a class="brand" href="{{ url_for('home.index') }}">Personal Finances</a>
       <nav>
         <a href="{{ url_for('summary.dashboard') }}">Dashboard</a>
         <a href="{{ url_for('budgets.list_budgets') }}">Budgets</a>

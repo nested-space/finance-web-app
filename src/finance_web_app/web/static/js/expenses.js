@@ -39,7 +39,7 @@
     options: { responsive: true },
   });
 
-  makeChart("chart-expense-history", {
+  var historyChart = makeChart("chart-expense-history", {
     type: "line",
     data: {
       labels: p.history.labels,
@@ -48,7 +48,7 @@
     options: { responsive: true },
   });
 
-  makeChart("chart-expense-breakdown", {
+  var breakdownChart = makeChart("chart-expense-breakdown", {
     type: "doughnut",
     data: {
       labels: p.breakdown.labels,
@@ -58,7 +58,16 @@
   });
 
   var filter = document.getElementById("expense-category-filter");
-  if (filter && curveChart) {
+  var deselectBtn = document.getElementById("expense-deselect-all");
+  if (deselectBtn && filter) {
+    deselectBtn.addEventListener("click", function () {
+      Array.prototype.forEach.call(filter.querySelectorAll("input[type=checkbox]"), function (box) {
+        box.checked = false;
+      });
+      filter.dispatchEvent(new Event("change"));
+    });
+  }
+  if (filter && (curveChart || historyChart || breakdownChart)) {
     filter.addEventListener("change", function () {
       var boxes = Array.prototype.slice.call(filter.querySelectorAll("input:checked"));
       var query = boxes
@@ -72,11 +81,24 @@
           if (!resp.ok) throw new Error("filter failed");
           return resp.json();
         })
-        .then(function (curve) {
-          curveChart.data.labels = curve.labels;
-          curveChart.data.datasets[0].data = curve.spend_cumulative;
-          curveChart.data.datasets[1].data = curve.budget_cumulative;
-          curveChart.update();
+        .then(function (data) {
+          if (curveChart) {
+            curveChart.data.labels = data.current_month.labels;
+            curveChart.data.datasets[0].data = data.current_month.spend_cumulative;
+            curveChart.data.datasets[1].data = data.current_month.budget_cumulative;
+            curveChart.update();
+          }
+          if (historyChart) {
+            historyChart.data.labels = data.history.labels;
+            historyChart.data.datasets[0].data = data.history.spend_cumulative;
+            historyChart.update();
+          }
+          if (breakdownChart) {
+            breakdownChart.data.labels = data.breakdown.labels;
+            breakdownChart.data.datasets[0].data = data.breakdown.values;
+            breakdownChart.data.datasets[0].backgroundColor = palette(data.breakdown.labels.length);
+            breakdownChart.update();
+          }
         })
         .catch(function () {});
     });

@@ -78,3 +78,27 @@ def test_budget_history_has_two_cumulative_series(
     # £50 cap effective every month of the Jan-Jun window -> cumulative £300.
     assert budget_cumulative[-1] == Money.from_pence(30000)
     assert spend_cumulative[-1] == Money.from_pence(2000)
+
+
+def test_expense_history_filters_by_category(
+    history_service: HistoryService, fake_expense_repository: ExpenseRepository
+) -> None:
+    fake_expense_repository.create(
+        Expense(
+            name="Food",
+            quantity=Money.from_pence(1000),
+            category=Category.GROCERIES,
+            date=date(2026, 6, 10),
+        )
+    )
+    fake_expense_repository.create(
+        Expense(
+            name="Shoes",
+            quantity=Money.from_pence(9000),
+            category=Category.CLOTHING,
+            date=date(2026, 6, 15),
+        )
+    )
+    labels, spend_cumulative = history_service.expense_history(2026, 6, {Category.GROCERIES})
+    assert len(labels) == 6
+    assert spend_cumulative[-1] == Money.from_pence(1000)

@@ -10,7 +10,8 @@ from __future__ import annotations
 import calendar
 from datetime import date
 
-from flask import Blueprint, abort, render_template
+from flask import Blueprint, abort, redirect, render_template, url_for
+from flask.typing import ResponseReturnValue
 
 from finance_web_app.core.runtime.container import (
     get_budget_service,
@@ -37,6 +38,11 @@ def _shift_month(year: int, month: int, delta: int) -> tuple[int, int]:
     return index // 12, index % 12 + 1
 
 
+def _is_future_month(year: int, month: int) -> bool:
+    today = date.today()
+    return (year, month) > (today.year, today.month)
+
+
 @bp.get("")
 def dashboard() -> str:
     today = date.today()
@@ -44,13 +50,16 @@ def dashboard() -> str:
 
 
 @bp.get("/<int:year>/<int:month>")
-def dashboard_for_month(year: int, month: int) -> str:
+def dashboard_for_month(year: int, month: int) -> ResponseReturnValue:
     if not 1 <= month <= 12:
         abort(404)
+    if _is_future_month(year, month):
+        return redirect(url_for("summary.dashboard"))
     return _render(year, month)
 
 
 def _render(year: int, month: int) -> str:
+    today = date.today()
     payload = build_dashboard_payload(year, month)
     prev_year, prev_month = _shift_month(year, month, -1)
     next_year, next_month = _shift_month(year, month, 1)
@@ -62,4 +71,5 @@ def _render(year: int, month: int) -> str:
         prev_month=prev_month,
         next_year=next_year,
         next_month=next_month,
+        is_current_month=(year == today.year and month == today.month),
     )

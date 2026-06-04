@@ -12,6 +12,7 @@ from calendar import month_abbr
 from finance_web_app.application.services.budget_service import BudgetService
 from finance_web_app.application.services.expense_service import ExpenseService
 from finance_web_app.domain.money import Money
+from finance_web_app.domain.records import Category
 
 
 def _label(year: int, month: int) -> str:
@@ -43,12 +44,16 @@ class HistoryService:
             spend_cumulative.append(Money.from_pence(spend_total))
         return labels, budget_cumulative, spend_cumulative
 
-    def expense_history(self, year: int, month: int) -> tuple[list[str], list[Money]]:
+    def expense_history(
+        self, year: int, month: int, categories: set[Category] | None = None
+    ) -> tuple[list[str], list[Money]]:
         labels: list[str] = []
         spend_cumulative: list[Money] = []
         spend_total = 0
         for y, m in self.last_six_months(year, month):
             labels.append(_label(y, m))
-            spend_total += self._expenses.total(y, m).pence()
+            spend_total += sum(
+                v.pence() for v in self._expenses.totals_by_category(y, m, categories).values()
+            )
             spend_cumulative.append(Money.from_pence(spend_total))
         return labels, spend_cumulative

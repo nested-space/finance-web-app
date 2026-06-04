@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Budgets — finance_web_app{% endblock %}
+{% block title %}Budgets — Personal Finances{% endblock %}
 
 {% block content %}
   <section class="panel panel--tint">
@@ -50,11 +50,11 @@
 
   <section class="panel">
     <h2 class="panel-title">Charts</h2>
-    <div class="split split-2">
+    <div class="split split-3">
       <div><h3>Spend vs budget</h3><canvas id="chart-spend-vs-budget" height="220"></canvas></div>
       <div><h3>6-month history</h3><canvas id="chart-budget-history" height="220"></canvas></div>
+      <div><h3>Budget breakdown</h3><canvas id="chart-budget-breakdown" height="220"></canvas></div>
     </div>
-    <div class="chart-pie"><h3>Budget breakdown</h3><canvas id="chart-budget-breakdown" height="240"></canvas></div>
   </section>
 
   <section class="panel">

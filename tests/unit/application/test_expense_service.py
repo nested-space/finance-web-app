@@ -89,3 +89,23 @@ def test_cumulative_spend_runs_and_filters_by_category(expense_service: ExpenseS
 
     groceries = expense_service.cumulative_spend(2026, 6, {Category.GROCERIES})
     assert groceries[-1] == Money.from_pence(1000)
+
+
+def test_totals_by_category_filters_by_category(expense_service: ExpenseService) -> None:
+    expense_service.create(
+        name="Food",
+        quantity=Money.from_pence(1000),
+        category=Category.GROCERIES,
+        date=date(2026, 6, 1),
+        description=None,
+    )
+    expense_service.create(
+        name="Shoes",
+        quantity=Money.from_pence(5000),
+        category=Category.CLOTHING,
+        date=date(2026, 6, 5),
+        description=None,
+    )
+    filtered = expense_service.totals_by_category(2026, 6, {Category.GROCERIES})
+    assert filtered == {Category.GROCERIES: Money.from_pence(1000)}
+    assert Category.CLOTHING not in filtered

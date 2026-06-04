@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard — finance_web_app{% endblock %}
+{% block title %}Dashboard — Personal Finances{% endblock %}
 
 {% block content %}
   <section class="panel panel--navy dashboard-header">
@@ -11,8 +11,15 @@
     <nav class="month-nav" aria-label="Month navigation">
       <a class="btn btn-on-navy" id="nav-prev"
          href="{{ url_for('summary.dashboard_for_month', year=prev_year, month=prev_month) }}">‹ Prev</a>
-      <a class="btn btn-on-navy" id="nav-next"
-         href="{{ url_for('summary.dashboard_for_month', year=next_year, month=next_month) }}">Next ›</a>
+      <a class="btn btn-on-navy nav-home{% if is_current_month %} is-disabled{% endif %}" id="nav-home"
+         href="{{ url_for('summary.dashboard') }}"
+         {% if is_current_month %}aria-disabled="true" tabindex="-1"{% endif %}
+         aria-label="Current month" title="Current month">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-home" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M5 12l-2 0l9 -9l9 9l-2 0" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" /><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" /></svg>
+      </a>
+      <a class="btn btn-on-navy{% if is_current_month %} is-disabled{% endif %}" id="nav-next"
+         href="{{ url_for('summary.dashboard_for_month', year=next_year, month=next_month) }}"
+         {% if is_current_month %}aria-disabled="true" tabindex="-1"{% endif %}>Next ›</a>
     </nav>
   </section>
 

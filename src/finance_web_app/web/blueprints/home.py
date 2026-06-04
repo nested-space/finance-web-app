@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from flask import Blueprint, render_template
+from flask import Blueprint, redirect, url_for
+from flask.typing import ResponseReturnValue
 
 bp = Blueprint("home", __name__)
 
 
 @bp.get("/")
-def index() -> str:
-    return render_template("index.html")
+def index() -> ResponseReturnValue:
+    return redirect(url_for("summary.dashboard"))
