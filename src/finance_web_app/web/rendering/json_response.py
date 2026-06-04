@@ -59,6 +59,29 @@ def _category_series(totals: dict[Category, Money]) -> dict[str, object]:
     }
 
 
+def budgets_charts_payload(
+    spend_by_category: dict[Category, Money],
+    cap_by_category: dict[Category, Money],
+    history: tuple[list[str], list[Money], list[Money]],
+) -> dict[str, object]:
+    zero = Money.from_pence(0)
+    categories = [c for c in Category if c in cap_by_category or c in spend_by_category]
+    labels, budget_cumulative, spend_cumulative = history
+    return {
+        "spend_vs_budget": {
+            "labels": [CATEGORY_LABELS[c] for c in categories],
+            "spend": [_pounds(spend_by_category.get(c, zero)) for c in categories],
+            "budget": [_pounds(cap_by_category.get(c, zero)) for c in categories],
+        },
+        "breakdown": _category_series(cap_by_category),
+        "history": {
+            "labels": labels,
+            "budget_cumulative": [_pounds(m) for m in budget_cumulative],
+            "spend_cumulative": [_pounds(m) for m in spend_cumulative],
+        },
+    }
+
+
 def _insights_payload(insights: MonthlyInsights) -> dict[str, object]:
     largest = insights.largest_expense
     return {

@@ -51,6 +51,14 @@ def test_invalid_create_returns_400_with_message(flask_client: FlaskClient) -> N
     assert b"alert-danger" in resp.data
 
 
+def test_charts_payload_is_embedded(flask_client: FlaskClient) -> None:
+    flask_client.post("/finance/budgets", data=_VALID)
+    page = flask_client.get("/finance/budgets").data
+    assert b'id="budgets-charts"' in page
+    assert b"chart-spend-vs-budget" in page
+    assert b"chart-budget-history" in page
+
+
 def test_unknown_url_renders_404(flask_client: FlaskClient) -> None:
     resp = flask_client.get("/no/such/page")
     assert resp.status_code == 404

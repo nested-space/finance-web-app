@@ -44,6 +44,15 @@
   </section>
 
   <section class="panel">
+    <h2 class="panel-title">Charts</h2>
+    <div class="split split-2">
+      <div><h3>Spend vs budget</h3><canvas id="chart-spend-vs-budget" height="220"></canvas></div>
+      <div><h3>6-month history</h3><canvas id="chart-budget-history" height="220"></canvas></div>
+    </div>
+    <div class="chart-pie"><h3>Budget breakdown</h3><canvas id="chart-budget-breakdown" height="240"></canvas></div>
+  </section>
+
+  <section class="panel">
     <h2 class="panel-title">Current budgets</h2>
     {% if budgets %}
       <table class="table">
@@ -83,4 +92,8 @@
       <p class="muted">No budgets yet. Add one above.</p>
     {% endif %}
   </section>
+
+  <script type="application/json" id="budgets-charts">{{ charts | tojson }}</script>
+  <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/budgets.js') }}"></script>
 {% endblock %}

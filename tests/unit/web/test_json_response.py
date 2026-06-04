@@ -13,9 +13,29 @@ from finance_web_app.application.services.insights_service import MonthlyInsight
 from finance_web_app.domain.money import Money
 from finance_web_app.domain.monthly_model import MonthlyModel
 from finance_web_app.domain.records import Category
-from finance_web_app.web.rendering.json_response import finance_dashboard_payload
+from finance_web_app.web.rendering.json_response import (
+    budgets_charts_payload,
+    finance_dashboard_payload,
+)
 
 pytestmark = pytest.mark.unit
+
+
+def test_budgets_charts_payload_shapes_and_serialises() -> None:
+    payload = budgets_charts_payload(
+        {Category.GROCERIES: Money.from_pence(20000)},
+        {Category.GROCERIES: Money.from_pence(10000)},
+        (
+            ["May 2026", "Jun 2026"],
+            [Money.from_pence(10000), Money.from_pence(20000)],
+            [Money.from_pence(5000), Money.from_pence(25000)],
+        ),
+    )
+    data: Any = json.loads(json.dumps(payload))
+    assert data["spend_vs_budget"] == {"labels": ["Groceries"], "spend": [200.0], "budget": [100.0]}
+    assert data["breakdown"] == {"labels": ["Groceries"], "values": [100.0]}
+    assert data["history"]["budget_cumulative"] == [100.0, 200.0]
+    assert data["history"]["spend_cumulative"] == [50.0, 250.0]
 
 
 def test_payload_shapes_money_as_float_pounds_and_is_json_serialisable() -> None:
