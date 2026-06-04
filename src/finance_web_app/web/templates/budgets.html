@@ -6,42 +6,47 @@
   <section class="panel panel--tint">
     <h1>Budgets</h1>
     <p class="lead">Set a monthly cap per category and track spending against it.</p>
+    <button class="btn btn-primary" type="button" data-open-modal="budget-modal">Add a budget</button>
   </section>
 
-  {% if error %}
-    <div class="alert alert-danger" role="alert">{{ error }}</div>
-  {% endif %}
-
-  <section class="panel">
-    <h2 class="panel-title">Add a budget</h2>
-    <form class="form" method="post" action="{{ url_for('budgets.create_budget') }}">
-      <label>
-        Name
-        <input type="text" name="name" required />
-      </label>
-      <label>
-        Amount
-        <input type="number" name="quantity" step="0.01" min="0" required />
-      </label>
-      <label>
-        Category
-        <select name="category" required>
-          {% for code, label in category_choices %}
-            <option value="{{ code }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label>
-        Effective from
-        <input type="date" name="effective_from" />
-      </label>
-      <label>
-        Effective stop
-        <input type="date" name="effective_stop" />
-      </label>
-      <button class="btn btn-primary" type="submit">Add budget</button>
-    </form>
-  </section>
+  <dialog class="modal" id="budget-modal"{% if error %} data-open-on-load{% endif %}>
+    <div class="modal-body">
+      <div class="modal-head">
+        <h2 class="panel-title">Add a budget</h2>
+        <button class="btn-icon" type="button" data-close-modal aria-label="Close">✕</button>
+      </div>
+      {% if error %}
+        <div class="alert alert-danger" role="alert">{{ error }}</div>
+      {% endif %}
+      <form class="form" method="post" action="{{ url_for('budgets.create_budget') }}">
+        <label>
+          Name
+          <input type="text" name="name" required />
+        </label>
+        <label>
+          Amount
+          <input type="number" name="quantity" step="0.01" min="0" required />
+        </label>
+        <label>
+          Category
+          <select name="category" required>
+            {% for code, label in category_choices %}
+              <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Effective from
+          <input type="date" name="effective_from" />
+        </label>
+        <label>
+          Effective stop
+          <input type="date" name="effective_stop" />
+        </label>
+        <button class="btn btn-primary" type="submit">Add budget</button>
+      </form>
+    </div>
+  </dialog>
 
   <section class="panel">
     <h2 class="panel-title">Charts</h2>
@@ -89,7 +94,7 @@
         </tbody>
       </table>
     {% else %}
-      <p class="muted">No budgets yet. Add one above.</p>
+      <p class="muted">No budgets yet. Use “Add a budget” to get started.</p>
     {% endif %}
   </section>
 

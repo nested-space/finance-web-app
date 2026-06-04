@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The "add" forms on the budgets, expenses, commitments, and income pages now open in a native `<dialog>` modal (triggered from a button in the page header) instead of an always-visible panel, so they no longer consume vertical space. A failed submit reopens the modal with the error inside it. Wired by `web/static/js/modal.js`; no new dependency.
 - Reshaped `/finance/api/expenses` from "spend aggregated by category" to per-day cumulative spend + straight-line budget for a category filter (`{labels, spend_cumulative, budget_cumulative}`) — the shape the expenses spend curve needs. The endpoint was not previously built, so nothing breaks.
 
 - **Re-platformed persistence onto SQLModel (SQLAlchemy + Pydantic) with Alembic** (decisions D-008/D-009). SQLModel `table=True` models are now the schema source of truth; repositories extend a generic `SqlModelRepository` base so CRUD lives once. `Money` and `EffectivePeriod` are retained — `Money` persists as `INTEGER` pence via a `MoneyPence` SQLAlchemy `TypeDecorator`, and `EffectivePeriod` is derived from the `effective_from`/`effective_stop` columns. Connection pragmas now apply via an engine `connect` hook; the app holds a per-request SQLModel `Session`.

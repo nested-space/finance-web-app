@@ -455,3 +455,33 @@ canvas {
   margin-top: 1.5rem;
   max-width: 420px;
 }
+
+/* ---- Modals (native <dialog>) ----------------------------------------- */
+dialog.modal {
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  width: calc(100% - 2rem);
+  max-width: 32rem;
+}
+
+dialog.modal::backdrop {
+  background: rgba(45, 63, 92, 0.45); /* Slate Navy wash */
+}
+
+.modal-body {
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.modal-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.modal-head .panel-title {
+  margin: 0;
+}

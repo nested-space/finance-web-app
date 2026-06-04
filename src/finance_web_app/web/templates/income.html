@@ -6,42 +6,47 @@
   <section class="panel panel--tint">
     <h1>Income</h1>
     <p class="lead">Track recurring income streams that fund the month.</p>
+    <button class="btn btn-primary" type="button" data-open-modal="income-modal">Add an income stream</button>
   </section>
 
-  {% if error %}
-    <div class="alert alert-danger" role="alert">{{ error }}</div>
-  {% endif %}
-
-  <section class="panel">
-    <h2 class="panel-title">Add an income stream</h2>
-    <form class="form" method="post" action="{{ url_for('income.create_income') }}">
-      <label>
-        Name
-        <input type="text" name="name" required />
-      </label>
-      <label>
-        Amount
-        <input type="number" name="quantity" step="0.01" min="0" required />
-      </label>
-      <label>
-        Recurrence
-        <select name="recurrence" required>
-          {% for code, label in recurrence_choices %}
-            <option value="{{ code }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label>
-        Effective from
-        <input type="date" name="effective_from" required />
-      </label>
-      <label>
-        Effective stop
-        <input type="date" name="effective_stop" />
-      </label>
-      <button class="btn btn-primary" type="submit">Add income</button>
-    </form>
-  </section>
+  <dialog class="modal" id="income-modal"{% if error %} data-open-on-load{% endif %}>
+    <div class="modal-body">
+      <div class="modal-head">
+        <h2 class="panel-title">Add an income stream</h2>
+        <button class="btn-icon" type="button" data-close-modal aria-label="Close">✕</button>
+      </div>
+      {% if error %}
+        <div class="alert alert-danger" role="alert">{{ error }}</div>
+      {% endif %}
+      <form class="form" method="post" action="{{ url_for('income.create_income') }}">
+        <label>
+          Name
+          <input type="text" name="name" required />
+        </label>
+        <label>
+          Amount
+          <input type="number" name="quantity" step="0.01" min="0" required />
+        </label>
+        <label>
+          Recurrence
+          <select name="recurrence" required>
+            {% for code, label in recurrence_choices %}
+              <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Effective from
+          <input type="date" name="effective_from" required />
+        </label>
+        <label>
+          Effective stop
+          <input type="date" name="effective_stop" />
+        </label>
+        <button class="btn btn-primary" type="submit">Add income</button>
+      </form>
+    </div>
+  </dialog>
 
   <section class="panel">
     <h2 class="panel-title">Current income streams</h2>
@@ -80,7 +85,7 @@
         </tbody>
       </table>
     {% else %}
-      <p class="muted">No income streams yet. Add one above.</p>
+      <p class="muted">No income streams yet. Use “Add an income stream” to record one.</p>
     {% endif %}
   </section>
 {% endblock %}

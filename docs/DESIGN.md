@@ -179,3 +179,7 @@ MANDATORY:
   per `ARCHITECTURE.md` → "Frontend asset boundary". Inter is the approved typeface.
 - Charts (C3) are the only place the secondary palette and its tints appear; chart
   series map to `--s1`…`--s5`, callouts to `--sX-tint`.
+- **Add/edit forms use native `<dialog>` modals** (sharp, 1px border, `--canvas`
+  background, Slate Navy backdrop), opened from a trigger button and wired by
+  `web/static/js/modal.js` — so forms don't consume page height. On a failed
+  submit the page re-renders and the modal reopens with the error inside it.

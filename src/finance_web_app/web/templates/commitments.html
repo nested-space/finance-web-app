@@ -6,60 +6,65 @@
   <section class="panel panel--tint">
     <h1>Commitments</h1>
     <p class="lead">Track recurring outgoings such as subscriptions and bills.</p>
+    <button class="btn btn-primary" type="button" data-open-modal="commitment-modal">Add a commitment</button>
   </section>
 
-  {% if error %}
-    <div class="alert alert-danger" role="alert">{{ error }}</div>
-  {% endif %}
-
-  <section class="panel">
-    <h2 class="panel-title">Add a commitment</h2>
-    <form class="form" method="post" action="{{ url_for('commitments.create_commitment') }}">
-      <label>
-        Name
-        <input type="text" name="name" required />
-      </label>
-      <label>
-        Amount
-        <input type="number" name="quantity" step="0.01" min="0" required />
-      </label>
-      <label>
-        Category
-        <select name="category" required>
-          {% for code, label in category_choices %}
-            <option value="{{ code }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label>
-        Recurrence
-        <select id="commitment-recurrence" name="recurrence" required>
-          {% for code, label in recurrence_choices %}
-            <option value="{{ code }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label>
-        Effective from
-        <input type="date" name="effective_from" required />
-      </label>
-      <div id="commitment-length-fields" class="split split-2">
+  <dialog class="modal" id="commitment-modal"{% if error %} data-open-on-load{% endif %}>
+    <div class="modal-body">
+      <div class="modal-head">
+        <h2 class="panel-title">Add a commitment</h2>
+        <button class="btn-icon" type="button" data-close-modal aria-label="Close">✕</button>
+      </div>
+      {% if error %}
+        <div class="alert alert-danger" role="alert">{{ error }}</div>
+      {% endif %}
+      <form class="form" method="post" action="{{ url_for('commitments.create_commitment') }}">
         <label>
-          Length
-          <input type="number" name="length" min="1" step="1" />
+          Name
+          <input type="text" name="name" required />
         </label>
         <label>
-          Length unit
-          <select name="length_unit">
-            {% for code, label in length_unit_choices %}
+          Amount
+          <input type="number" name="quantity" step="0.01" min="0" required />
+        </label>
+        <label>
+          Category
+          <select name="category" required>
+            {% for code, label in category_choices %}
               <option value="{{ code }}">{{ label }}</option>
             {% endfor %}
           </select>
         </label>
-      </div>
-      <button class="btn btn-primary" type="submit">Add commitment</button>
-    </form>
-  </section>
+        <label>
+          Recurrence
+          <select id="commitment-recurrence" name="recurrence" required>
+            {% for code, label in recurrence_choices %}
+              <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Effective from
+          <input type="date" name="effective_from" required />
+        </label>
+        <div id="commitment-length-fields" class="split split-2">
+          <label>
+            Length
+            <input type="number" name="length" min="1" step="1" />
+          </label>
+          <label>
+            Length unit
+            <select name="length_unit">
+              {% for code, label in length_unit_choices %}
+                <option value="{{ code }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+        <button class="btn btn-primary" type="submit">Add commitment</button>
+      </form>
+    </div>
+  </dialog>
 
   <section class="panel">
     <h2 class="panel-title">Current commitments</h2>
@@ -101,7 +106,7 @@
         </table>
       {% endfor %}
     {% else %}
-      <p class="muted">No commitments yet. Add one above.</p>
+      <p class="muted">No commitments yet. Use “Add a commitment” to record one.</p>
     {% endif %}
   </section>
 
