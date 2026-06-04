@@ -115,7 +115,7 @@ Chart data for the *initial* render of each page is computed server-side and emb
 | Method | Path | Returns |
 | --- | --- | --- |
 | `GET` | `/finance/api/model/<year>/<month>` | The full `MonthlyModel` for the month: per-day income/commitments/expenses/budget series and the cumulative & subtractive balance series. Feeds the dashboard finance-model line chart on month navigation. |
-| `GET` | `/finance/api/expenses/<year>/<month>` | Expense spend for the month aggregated by category (optionally filtered to one `category` via query string), shaped for the spend-vs-budget chart. |
+| `GET` | `/finance/api/expenses/<year>/<month>` | Per-day cumulative expense spend and the straight-line budget allocation for the month, optionally filtered to one or more categories via repeated `category` query params (none = all). Feeds the expenses page's spend-vs-budget curve when the category filter changes. Returns `{labels, spend_cumulative, budget_cumulative}`. |
 
 Response shapes match the service contracts in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). These shapes are part of the public contract — changing one is a MAJOR SemVer bump (see [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)).
 

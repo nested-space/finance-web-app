@@ -5,8 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 All four resources (budgets, expenses, commitments, income) are implemented end-to-end on a **SQLModel +
-Alembic** stack, plus the **`/finance` dashboard** (finance model, insights, four Chart.js charts, month
-navigation). Remaining: the per-page budgets/expenses charts (C3b) — see `docs/ROADMAP.md` → "Build phasing". The app is the Flask + SQLite rebuild of a
+Alembic** stack, plus the **`/finance` dashboard** and the **per-page charts** on the budgets and expenses
+pages. This completes the documented v1.0.0 page/chart scope; a `1.0.0` tag is a release decision, not yet
+cut (open items D-001/D-003/D-011 — see `docs/ROADMAP.md`). The app is the Flask + SQLite rebuild of a
 prior Node/Express/EJS/MongoDB app (that old code is a *capability reference only*, not in this repo).
 
 The docs are authoritative and have a precedence order:
