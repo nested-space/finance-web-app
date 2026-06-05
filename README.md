@@ -21,7 +21,7 @@ pip install -e .
 flask --app finance_web_app.web run
 ```
 
-The app serves on http://127.0.0.1:5000. On first run, an empty SQLite database is created at `./data/finance.db`. Override with `FINANCE_DB_PATH` if you want it elsewhere; see [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full env-var list.
+The app serves on http://127.0.0.1:5000. On first run, an empty SQLite database is created at `~/.databases/finance/finance.db` (under your home directory, outside the working tree). Override with `FINANCE_DB_PATH` if you want it elsewhere; see [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full env-var list.
 
 For contributor setup (tests, linting, type checking) see [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 

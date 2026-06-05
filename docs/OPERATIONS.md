@@ -19,7 +19,7 @@ All operational configuration is via environment variables. There is no config f
 
 | Variable | Default | Required | Purpose |
 | --- | --- | --- | --- |
-| `FINANCE_DB_PATH` | `./data/finance.db` | No | Filesystem path to the SQLite database. Parent directory is created on first run if absent. |
+| `FINANCE_DB_PATH` | `~/.databases/finance/finance.db` | No | Filesystem path to the SQLite database. Default lives under the user's home (outside the working tree) so it is never confused with a test or scratch DB. Parent directory is created on first run if absent. |
 | `FINANCE_SECRET_KEY` | *unset* | Only when sessions are added | Flask session-signing key. v1.0.0 has no auth, so this is unused. Set before any session-bearing feature ships. |
 | `FINANCE_LOG_LEVEL` | `INFO` | No | One of `DEBUG`, `INFO`, `WARNING`, `ERROR`. Applied to the root logger at startup. |
 | `FLASK_DEBUG` | `0` | No | `1` enables debug pages and the reloader. Never set this in production. |
@@ -31,7 +31,7 @@ Variables not listed above are not read. Spurious env vars do not affect behavio
 One SQLite file holds everything. There is no separate cache, no Redis, no message queue.
 
 ```
-$FINANCE_DB_PATH         # default ./data/finance.db
+$FINANCE_DB_PATH         # default ~/.databases/finance/finance.db
 $FINANCE_DB_PATH-wal     # write-ahead log (managed by SQLite, do not touch)
 $FINANCE_DB_PATH-shm     # shared memory file (managed by SQLite, do not touch)
 ```
@@ -55,8 +55,9 @@ The schema source of truth is the **SQLModel models** in `src/finance_web_app/do
 Forward-only migration scripts live at `src/finance_web_app/migrations/versions/`. Generate one after changing a model:
 
 ```bash
-# point at any throwaway/dev DB; the script is generated from the model diff
-FINANCE_DB_PATH=./data/finance.db alembic revision --autogenerate -m "short description"
+# point at a throwaway/dev DB (never production); the script is the model diff
+FINANCE_DB_PATH=/tmp/finance-autogen.db alembic upgrade head
+FINANCE_DB_PATH=/tmp/finance-autogen.db alembic revision --autogenerate -m "short description"
 ```
 
 **Always review the generated script.** Autogenerate reliably detects tables and columns but can miss `CHECK` constraints and some type changes — edit the script if the diff is incomplete. Custom column types (e.g. `MoneyPence`) require the module to be imported in the script; the initial migration includes `import finance_web_app.domain.money`.

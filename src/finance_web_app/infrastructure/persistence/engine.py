@@ -7,10 +7,16 @@ shared by the app and Alembic (``docs/OPERATIONS.md`` -> "Data layout").
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Engine, event
 from sqlmodel import Session, create_engine
+
+# Default location of the production SQLite database. Lives under the user's home
+# (``~/.databases/finance/finance.db``) so it is outside the working tree and
+# never confused with a test or scratch DB. Override with ``FINANCE_DB_PATH``.
+DEFAULT_DB_PATH = str(Path.home() / ".databases" / "finance" / "finance.db")
 
 
 def database_url(db_path: str) -> str:

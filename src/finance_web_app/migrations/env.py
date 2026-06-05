@@ -15,7 +15,7 @@ from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 import finance_web_app.domain.records  # noqa: F401  (import registers the models)
-from finance_web_app.infrastructure.persistence.engine import database_url
+from finance_web_app.infrastructure.persistence.engine import DEFAULT_DB_PATH, database_url
 
 config = context.config
 if config.config_file_name is not None:
@@ -28,7 +28,7 @@ def _url() -> str:
     configured = config.get_main_option("sqlalchemy.url")
     if configured:
         return configured
-    return database_url(os.environ.get("FINANCE_DB_PATH", "./data/finance.db"))
+    return database_url(os.environ.get("FINANCE_DB_PATH", DEFAULT_DB_PATH))
 
 
 def run_migrations_offline() -> None:
