@@ -20,20 +20,16 @@
       {% endif %}
       <form class="form" method="post" action="{{ url_for('budgets.create_budget') }}">
         <label>
-          Name
-          <input type="text" name="name" required />
-        </label>
-        <label>
-          Amount
-          <input type="number" name="quantity" step="0.01" min="0" required />
-        </label>
-        <label>
           Category
           <select name="category" required>
             {% for code, label in category_choices %}
               <option value="{{ code }}">{{ label }}</option>
             {% endfor %}
           </select>
+        </label>
+        <label>
+          Amount
+          <input type="number" name="quantity" step="0.01" min="0" required />
         </label>
         <label>
           Effective from
@@ -63,9 +59,8 @@
       <table class="table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Amount</th>
             <th>Category</th>
+            <th>Amount</th>
             <th>From</th>
             <th>Stop</th>
             <th></th>
@@ -74,12 +69,12 @@
         <tbody>
           {% for budget in budgets %}
             <tr>
-              <td>{{ budget.name }}</td>
-              <td>{{ budget.quantity }}</td>
               <td>{{ budget.category }}</td>
+              <td>{{ budget.quantity }}</td>
               <td>{{ budget.effective_from }}</td>
               <td>{{ budget.effective_stop }}</td>
-              <td>
+              <td class="row-actions">
+                <a class="btn btn-ghost" href="{{ url_for('budgets.budget_detail', budget_id=budget.id) }}">Manage</a>
                 <form
                   method="post"
                   action="{{ url_for('budgets.delete_budget', budget_id=budget.id) }}"
@@ -94,7 +89,7 @@
         </tbody>
       </table>
     {% else %}
-      <p class="muted">No budgets yet. Use “Add a budget” to get started.</p>
+      <p class="muted">No budgets yet. Use “Add a budget” to set a cap per category.</p>
     {% endif %}
   </section>
 

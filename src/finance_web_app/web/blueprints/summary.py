@@ -15,6 +15,7 @@ from flask.typing import ResponseReturnValue
 
 from finance_web_app.core.runtime.container import (
     get_budget_service,
+    get_category_service,
     get_commitment_service,
     get_finance_model_service,
     get_insights_service,
@@ -30,7 +31,10 @@ def build_dashboard_payload(year: int, month: int) -> dict[str, object]:
     insights = get_insights_service().insights_for_month(year, month)
     budget_totals = get_budget_service().totals_by_category(year, month)
     commitment_totals = get_commitment_service().totals_by_category(year, month)
-    return finance_dashboard_payload(year, month, model, insights, budget_totals, commitment_totals)
+    categories = get_category_service().list_all()
+    return finance_dashboard_payload(
+        year, month, model, insights, budget_totals, commitment_totals, categories
+    )
 
 
 def _shift_month(year: int, month: int, delta: int) -> tuple[int, int]:

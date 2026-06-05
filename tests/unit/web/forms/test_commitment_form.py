@@ -7,7 +7,6 @@ from datetime import date
 import pytest
 
 from finance_web_app.core.contracts.errors import ValidationError
-from finance_web_app.domain.records import Category
 from finance_web_app.domain.recurrence import Recurrence
 from finance_web_app.web.forms.commitment_form import parse_commitment_form
 
@@ -18,7 +17,7 @@ def _valid_form(**overrides: str) -> dict[str, str]:
     form = {
         "name": "Netflix",
         "quantity": "9.99",
-        "category": "ENTERTAINMENT",
+        "category": "4",
         "recurrence": "MONTHLY",
         "effective_from": "2026-01-15",
         "length": "6",
@@ -32,7 +31,7 @@ def test_valid_form_coerces() -> None:
     parsed = parse_commitment_form(_valid_form())
     assert parsed.name == "Netflix"
     assert parsed.quantity.pence() == 999
-    assert parsed.category is Category.ENTERTAINMENT
+    assert parsed.category_id == 4
     assert parsed.recurrence is Recurrence.MONTHLY
     assert parsed.effective_from == date(2026, 1, 15)
     assert parsed.effective_stop == date(2026, 7, 15)
@@ -64,7 +63,7 @@ def test_once_only_needs_no_length_and_collapses_to_a_day() -> None:
         {
             "name": "Setup",
             "quantity": "50",
-            "category": "KIDS",
+            "category": "6",
             "recurrence": "ONCE_ONLY",
             "effective_from": "2026-03-15",
         }
@@ -79,9 +78,10 @@ def test_length_required_for_recurring() -> None:
     assert exc.value.field == "length"
 
 
-def test_category_outside_subset_is_rejected() -> None:
+@pytest.mark.parametrize("bad", ["", "ENTERTAINMENT", "0"])
+def test_invalid_category_is_rejected(bad: str) -> None:
     with pytest.raises(ValidationError) as exc:
-        parse_commitment_form(_valid_form(category="PETROL"))
+        parse_commitment_form(_valid_form(category=bad))
     assert exc.value.field == "category"
 
 

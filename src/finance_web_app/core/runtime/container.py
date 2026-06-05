@@ -11,14 +11,20 @@ from __future__ import annotations
 from flask import current_app, g
 from sqlmodel import Session
 
+from finance_web_app.application.services.budget_item_service import BudgetItemService
 from finance_web_app.application.services.budget_service import BudgetService
+from finance_web_app.application.services.category_service import CategoryService
 from finance_web_app.application.services.commitment_service import CommitmentService
 from finance_web_app.application.services.expense_service import ExpenseService
 from finance_web_app.application.services.finance_model_service import FinanceModelService
 from finance_web_app.application.services.history_service import HistoryService
 from finance_web_app.application.services.income_service import IncomeService
 from finance_web_app.application.services.insights_service import InsightsService
+from finance_web_app.infrastructure.persistence.budget_item_repository import (
+    SqlBudgetItemRepository,
+)
 from finance_web_app.infrastructure.persistence.budget_repository import SqlBudgetRepository
+from finance_web_app.infrastructure.persistence.category_repository import SqlCategoryRepository
 from finance_web_app.infrastructure.persistence.commitment_repository import SqlCommitmentRepository
 from finance_web_app.infrastructure.persistence.engine import make_session
 from finance_web_app.infrastructure.persistence.expense_repository import SqlExpenseRepository
@@ -40,16 +46,32 @@ def close_session(_exception: BaseException | None = None) -> None:
         session.close()
 
 
+def get_category_service() -> CategoryService:
+    return CategoryService(SqlCategoryRepository(get_session()))
+
+
+def get_budget_item_service() -> BudgetItemService:
+    session = get_session()
+    return BudgetItemService(SqlBudgetItemRepository(session), SqlCategoryRepository(session))
+
+
 def get_budget_service() -> BudgetService:
-    return BudgetService(SqlBudgetRepository(get_session()))
+    session = get_session()
+    return BudgetService(SqlBudgetRepository(session), SqlCategoryRepository(session))
 
 
 def get_expense_service() -> ExpenseService:
-    return ExpenseService(SqlExpenseRepository(get_session()))
+    session = get_session()
+    return ExpenseService(
+        SqlExpenseRepository(session),
+        SqlCategoryRepository(session),
+        SqlBudgetItemRepository(session),
+    )
 
 
 def get_commitment_service() -> CommitmentService:
-    return CommitmentService(SqlCommitmentRepository(get_session()))
+    session = get_session()
+    return CommitmentService(SqlCommitmentRepository(session), SqlCategoryRepository(session))
 
 
 def get_income_service() -> IncomeService:
@@ -72,6 +94,7 @@ def get_insights_service() -> InsightsService:
         get_finance_model_service(),
         SqlExpenseRepository(session),
         SqlBudgetRepository(session),
+        SqlCategoryRepository(session),
     )
 
 

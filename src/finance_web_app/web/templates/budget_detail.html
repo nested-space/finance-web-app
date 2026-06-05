@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}{{ budget.category }} budget — Personal Finances{% endblock %}
+
+{% block content %}
+  <section class="panel panel--tint">
+    <h1>{{ budget.category }} budget</h1>
+    <p class="lead">
+      {{ budget.quantity }} per month, effective from {{ budget.effective_from }}{% if budget.effective_stop %} to {{ budget.effective_stop }}{% endif %}.
+    </p>
+    <a class="btn btn-ghost" href="{{ url_for('budgets.list_budgets') }}">← Back to budgets</a>
+    <button class="btn btn-primary" type="button" data-open-modal="budget-item-modal">Add a budget item</button>
+  </section>
+
+  <dialog class="modal" id="budget-item-modal"{% if error %} data-open-on-load{% endif %}>
+    <div class="modal-body">
+      <div class="modal-head">
+        <h2 class="panel-title">Add a budget item</h2>
+        <button class="btn-icon" type="button" data-close-modal aria-label="Close">✕</button>
+      </div>
+      {% if error %}
+        <div class="alert alert-danger" role="alert">{{ error }}</div>
+      {% endif %}
+      <form
+        class="form"
+        method="post"
+        action="{{ url_for('budgets.create_budget_item', budget_id=budget.id) }}"
+      >
+        <label>
+          Name
+          <input type="text" name="name" required />
+        </label>
+        <button class="btn btn-primary" type="submit">Add budget item</button>
+      </form>
+    </div>
+  </dialog>
+
+  <section class="panel">
+    <h2 class="panel-title">Budget items</h2>
+    <p class="muted">Items label spending within this category but carry no amount of their own.</p>
+    {% if budget_items %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in budget_items %}
+            <tr>
+              <td>{{ item.name }}</td>
+              <td>
+                <form
+                  method="post"
+                  action="{{ url_for('budgets.delete_budget_item', budget_id=budget.id, item_id=item.id) }}"
+                >
+                  <button class="btn-icon" type="submit" title="Delete" aria-label="Delete">
+                    🗑
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No budget items yet. Use “Add a budget item” to create one.</p>
+    {% endif %}
+  </section>
+{% endblock %}

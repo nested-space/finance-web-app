@@ -6,8 +6,10 @@ This document is the source of truth for the layering, contracts, and boundaries
 
 `finance_web_app` is a single-process Flask application that lets one user track:
 
-- **Budgets** — recurring monthly spending caps with an effective date range.
-- **Expenses** — one-off spends categorised at point of entry.
+- **Categories** — a user-managed list (the `category` table) shared by every resource below. A category carries the budget amount (via a `Budget`); deleting one is blocked while it is still referenced.
+- **Budgets** — a monthly spending cap **per category**, with an effective date range (no name of its own).
+- **Budget items** — named labels under a category that carry no amount; an expense may be tagged with one.
+- **Expenses** — one-off spends categorised (and optionally tagged with a budget item) at point of entry.
 - **Commitments** — recurring outgoings (e.g. subscriptions) with a recurrence pattern and optional stop date.
 - **Income streams** — recurring income with the same recurrence pattern shape as commitments, plus one-off `exceptions` that override the regular amount on a specific date.
 
@@ -96,7 +98,7 @@ src/finance_web_app/
     money.py              # Money VO + MoneyPence (SQLAlchemy TypeDecorator)
     recurrence.py         # (C2)
     effective_period.py   # EffectivePeriod VO (derived from model columns)
-    records.py            # SQLModel table models (Budget, User, ... ) + Category
+    records.py            # SQLModel table models (Category, Budget, BudgetItem, Expense, ... )
   infrastructure/
     __init__.py
     persistence/
@@ -214,8 +216,8 @@ class IncomeRepository(Protocol):
 - **`Money`** — `dataclass(frozen=True)` wrapping a `Decimal`. Constructed via `Money.from_form_string(str)` which rejects negative input on creation. Two-decimal display via `__str__`. **Persisted as `INTEGER` minor units (pence)** by the `MoneyPence` SQLAlchemy `TypeDecorator` (also in `domain/money.py`), which converts via `Money.pence()` / `Money.from_pence(int)`. The DB never stores a float — see `OPERATIONS.md`.
 - **`Recurrence`** — `Enum` with members `DAILY`, `WEEKLY`, `MONTHLY`, `QUARTERLY`, `ANNUAL`, `ONCE_ONLY` (C2). Income may use all six; commitments may use all except `QUARTERLY`. The enum member **name** is the value stored in the DB; human display text is mapped in `web/rendering`, never persisted. Firing days derive from `effective_from` (see "`FinanceModelService` contract"), so there are no `day_of_*` columns.
 - **`EffectivePeriod`** — `dataclass(frozen=True)` with `from_date: date` and `stop_date: date | None`. Invariant: `stop_date is None or stop_date >= from_date`. Exposes `covers_month(year, month) -> bool` — the *single* date-effective predicate, defined here and nowhere else. It is **derived, not stored**: models persist `effective_from` / `effective_stop` columns and expose `.period` returning an `EffectivePeriod`. Services call `record.period.covers_month(...)`; there is no second copy of the predicate.
-- **`Budget`** (and C2's `Expense`, `Commitment`, `Income`, `IncomeException`) — **SQLModel `table=True` models**, the schema source of truth. `id: int | None` is `None` before persistence. `quantity: Money` maps through `MoneyPence`; `category: Category` is stored as its member name. Integrity from the old `schema.sql` is preserved as `CheckConstraint`s in `__table_args__` (non-empty name, `quantity >= 0`, valid category set, `effective_stop >= effective_from`). A `created` audit timestamp column is carried on the model (defaulted server-/Python-side) but is not surfaced in templates unless a feature needs it. Models set `model_config = {"arbitrary_types_allowed": True}` so Pydantic accepts the `Money` field type.
-- **`Category`** — `Enum`; member name is the persisted code, display text lives in `web/rendering`.
+- **`Budget`** (and `Expense`, `Commitment`, `Income`, `IncomeException`, `BudgetItem`) — **SQLModel `table=True` models**, the schema source of truth. `id: int | None` is `None` before persistence. `quantity: Money` maps through `MoneyPence`; `category_id: int` is a foreign key to `category.id` (the FK enforces a valid category — there is no longer a `category IN (...)` CHECK). A `Budget` has no name (the category names it); a `BudgetItem` is `name` + `category_id`; an `Expense` carries `category_id` plus an optional `budget_item_id`. Remaining integrity lives in `CheckConstraint`s in `__table_args__` (non-empty name where applicable, `quantity >= 0`, `effective_stop >= effective_from`, and the recurrence set). A `created` audit timestamp column is carried on the model but is not surfaced in templates unless a feature needs it. Models holding a `Money` field set `model_config = {"arbitrary_types_allowed": True}`.
+- **`Category`** — a **SQLModel `table=True` model** (`id`, unique non-empty `name`, `created`), user-managed and shared by budgets, budget items, expenses, and commitments. The name lives in the row (no enum, no persisted code). Per-category aggregates in services are keyed by `category_id`; `web/rendering` resolves ids to names. Deletion is blocked while `count_references` is non-zero.
 
 ## Bug-fix decisions (carried over from the prior Node implementation)
 

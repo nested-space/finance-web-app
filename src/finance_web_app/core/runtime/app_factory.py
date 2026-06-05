@@ -45,6 +45,7 @@ def create_app(db_path: str | None = None) -> Flask:
     from finance_web_app.web.blueprints import (
         api,
         budgets,
+        categories,
         commitments,
         expenses,
         home,
@@ -59,6 +60,7 @@ def create_app(db_path: str | None = None) -> Flask:
     app.register_blueprint(expenses.bp)
     app.register_blueprint(commitments.bp)
     app.register_blueprint(income.bp)
+    app.register_blueprint(categories.bp)
     app.register_blueprint(api.bp)
     register_error_handlers(app)
 

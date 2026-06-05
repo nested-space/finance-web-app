@@ -11,9 +11,10 @@ from decimal import Decimal
 
 from finance_web_app.application.services.finance_model_service import FinanceModelService
 from finance_web_app.core.contracts.budget_repository import BudgetRepository
+from finance_web_app.core.contracts.category_repository import CategoryRepository
 from finance_web_app.core.contracts.expense_repository import ExpenseRepository
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import Category, Expense
+from finance_web_app.domain.records import Expense
 
 
 @dataclass(frozen=True)
@@ -23,7 +24,7 @@ class MonthlyInsights:
     net: Decimal
     closing_balance: Decimal
     largest_expense: tuple[str, Money] | None
-    over_budget: list[Category]
+    over_budget: list[str]
 
 
 def _sum_pence(items: list[Money]) -> Money:
@@ -36,10 +37,12 @@ class InsightsService:
         finance_model: FinanceModelService,
         expenses: ExpenseRepository,
         budgets: BudgetRepository,
+        categories: CategoryRepository,
     ) -> None:
         self._finance_model = finance_model
         self._expenses = expenses
         self._budgets = budgets
+        self._categories = categories
 
     def insights_for_month(self, year: int, month: int) -> MonthlyInsights:
         model = self._finance_model.model_for_month(year, month)
@@ -63,12 +66,14 @@ class InsightsService:
             over_budget=self._over_budget(year, month, expenses),
         )
 
-    def _over_budget(self, year: int, month: int, expenses: list[Expense]) -> list[Category]:
-        caps: dict[Category, int] = {}
+    def _over_budget(self, year: int, month: int, expenses: list[Expense]) -> list[str]:
+        caps: dict[int, int] = {}
         for budget in self._budgets.list_effective(year, month):
-            caps[budget.category] = caps.get(budget.category, 0) + budget.quantity.pence()
-        spend: dict[Category, int] = {}
+            caps[budget.category_id] = caps.get(budget.category_id, 0) + budget.quantity.pence()
+        spend: dict[int, int] = {}
         for expense in expenses:
-            spend[expense.category] = spend.get(expense.category, 0) + expense.quantity.pence()
-        over = {category for category, cap in caps.items() if spend.get(category, 0) > cap}
-        return [category for category in Category if category in over]
+            spend[expense.category_id] = (
+                spend.get(expense.category_id, 0) + expense.quantity.pence()
+            )
+        over = {category_id for category_id, cap in caps.items() if spend.get(category_id, 0) > cap}
+        return [category.name for category in self._categories.list_all() if category.id in over]

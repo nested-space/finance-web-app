@@ -1,8 +1,10 @@
 """Budget form parsing and validation.
 
 Coerces raw request-body strings into domain value objects, translating any
-rejection into a typed ``ValidationError``. Depends only on ``domain`` and the
-contract errors (``docs/ARCHITECTURE.md`` -> "Layer map").
+rejection into a typed ``ValidationError``. ``category`` is the id of a
+user-managed category; that the id *exists* is checked by the service. Depends
+only on ``domain`` and the contract errors (``docs/ARCHITECTURE.md`` -> "Layer
+map").
 """
 
 from __future__ import annotations
@@ -14,30 +16,24 @@ from datetime import date
 from finance_web_app.core.contracts.errors import ValidationError
 from finance_web_app.domain.effective_period import EffectivePeriod
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import Category
 
 
 @dataclass(frozen=True)
 class ParsedBudget:
     """Validated budget fields, ready for the service to assemble into a record."""
 
-    name: str
     quantity: Money
-    category: Category
+    category_id: int
     period: EffectivePeriod
 
 
 def parse_budget_form(form: Mapping[str, str]) -> ParsedBudget:
-    name = form.get("name", "").strip()
-    if not name:
-        raise ValidationError("name", "is required")
-
     try:
         quantity = Money.from_form_string(form.get("quantity", ""))
     except ValueError as exc:
         raise ValidationError("quantity", str(exc)) from exc
 
-    category = _parse_category(form.get("category", ""))
+    category_id = _parse_category_id(form.get("category", ""))
     effective_from = _parse_optional_date(form.get("effective_from", ""), "effective_from")
     effective_stop = _parse_optional_date(form.get("effective_stop", ""), "effective_stop")
 
@@ -46,17 +42,20 @@ def parse_budget_form(form: Mapping[str, str]) -> ParsedBudget:
     except ValueError as exc:
         raise ValidationError("effective_stop", str(exc)) from exc
 
-    return ParsedBudget(name=name, quantity=quantity, category=category, period=period)
+    return ParsedBudget(quantity=quantity, category_id=category_id, period=period)
 
 
-def _parse_category(raw: str) -> Category:
-    code = raw.strip()
-    if not code:
+def _parse_category_id(raw: str) -> int:
+    text = raw.strip()
+    if not text:
         raise ValidationError("category", "is required")
     try:
-        return Category.from_code(code)
+        value = int(text)
     except ValueError as exc:
-        raise ValidationError("category", str(exc)) from exc
+        raise ValidationError("category", "must be a category") from exc
+    if value < 1:
+        raise ValidationError("category", "must be a category")
+    return value
 
 
 def _parse_optional_date(raw: str, field: str) -> date | None:

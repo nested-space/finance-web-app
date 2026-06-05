@@ -22,6 +22,14 @@ from finance_web_app.web.rendering.json_response import (
 
 pytestmark = pytest.mark.unit
 
+GROCERIES = 2
+ENTERTAINMENT = 4
+
+_CATEGORIES = [
+    Category(id=GROCERIES, name="Groceries"),
+    Category(id=ENTERTAINMENT, name="Entertainment"),
+]
+
 
 def test_expenses_curve_and_charts_payload() -> None:
     curve = expenses_curve_payload(
@@ -37,8 +45,9 @@ def test_expenses_curve_and_charts_payload() -> None:
         2026,
         6,
         curve,
-        {Category.GROCERIES: Money.from_pence(1000)},
+        {GROCERIES: Money.from_pence(1000)},
         (["May 2026", "Jun 2026"], [Money.from_pence(500), Money.from_pence(1500)]),
+        _CATEGORIES,
     )
     data: Any = json.loads(json.dumps(payload))
     assert data["year"] == 2026 and data["month"] == 6
@@ -49,13 +58,14 @@ def test_expenses_curve_and_charts_payload() -> None:
 
 def test_budgets_charts_payload_shapes_and_serialises() -> None:
     payload = budgets_charts_payload(
-        {Category.GROCERIES: Money.from_pence(20000)},
-        {Category.GROCERIES: Money.from_pence(10000)},
+        {GROCERIES: Money.from_pence(20000)},
+        {GROCERIES: Money.from_pence(10000)},
         (
             ["May 2026", "Jun 2026"],
             [Money.from_pence(10000), Money.from_pence(20000)],
             [Money.from_pence(5000), Money.from_pence(25000)],
         ),
+        _CATEGORIES,
     )
     data: Any = json.loads(json.dumps(payload))
     assert data["spend_vs_budget"] == {"labels": ["Groceries"], "spend": [200.0], "budget": [100.0]}
@@ -78,15 +88,16 @@ def test_payload_shapes_money_as_float_pounds_and_is_json_serialisable() -> None
         net=Decimal("2450.00"),
         closing_balance=Decimal("2450.00"),
         largest_expense=("Shoes", Money.from_pence(5000)),
-        over_budget=[Category.GROCERIES],
+        over_budget=["Groceries"],
     )
     payload = finance_dashboard_payload(
         2026,
         6,
         model,
         insights,
-        {Category.GROCERIES: Money.from_pence(20000)},
-        {Category.ENTERTAINMENT: Money.from_pence(999)},
+        {GROCERIES: Money.from_pence(20000)},
+        {ENTERTAINMENT: Money.from_pence(999)},
+        _CATEGORIES,
     )
 
     # Round-trips through JSON (proves serialisability and float conversion).

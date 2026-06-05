@@ -21,7 +21,7 @@ def test_upgrade_head_creates_tables_and_integer_money(tmp_path: Path) -> None:
         tables = {
             row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
-        assert {"budget", "user", "alembic_version"} <= tables
+        assert {"category", "budget", "budget_item", "user", "alembic_version"} <= tables
 
         columns = {row[1]: row[2] for row in conn.execute("PRAGMA table_info(budget)")}
         assert columns["quantity"] == "INTEGER"

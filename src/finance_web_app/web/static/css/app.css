@@ -381,6 +381,13 @@ a {
   border-bottom: none;
 }
 
+/* Inline row actions (e.g. Manage + Delete) sit on one line, left-aligned. */
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 /* ---- Alerts ----------------------------------------------------------- */
 .alert {
   padding: 0.85rem 1rem;

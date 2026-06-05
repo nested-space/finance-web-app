@@ -10,9 +10,12 @@ from finance_web_app.application.services.history_service import HistoryService
 from finance_web_app.core.contracts.budget_repository import BudgetRepository
 from finance_web_app.core.contracts.expense_repository import ExpenseRepository
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import Budget, Category, Expense
+from finance_web_app.domain.records import Budget, Expense
 
 pytestmark = pytest.mark.unit
+
+GROCERIES = 2  # seeded category id (see conftest SEED_CATEGORY_IDS)
+CLOTHING = 3
 
 
 def test_last_six_months_rolls_over_the_year() -> None:
@@ -33,7 +36,7 @@ def test_expense_history_is_cumulative(
         Expense(
             name="May",
             quantity=Money.from_pence(1000),
-            category=Category.GROCERIES,
+            category_id=GROCERIES,
             date=date(2026, 5, 10),
         )
     )
@@ -41,7 +44,7 @@ def test_expense_history_is_cumulative(
         Expense(
             name="Jun",
             quantity=Money.from_pence(2000),
-            category=Category.GROCERIES,
+            category_id=GROCERIES,
             date=date(2026, 6, 10),
         )
     )
@@ -59,9 +62,8 @@ def test_budget_history_has_two_cumulative_series(
 ) -> None:
     fake_budget_repository.create(
         Budget(
-            name="cap",
             quantity=Money.from_pence(5000),
-            category=Category.GROCERIES,
+            category_id=GROCERIES,
             effective_from=date(2026, 1, 1),
         )
     )
@@ -69,7 +71,7 @@ def test_budget_history_has_two_cumulative_series(
         Expense(
             name="spend",
             quantity=Money.from_pence(2000),
-            category=Category.GROCERIES,
+            category_id=GROCERIES,
             date=date(2026, 6, 3),
         )
     )
@@ -87,7 +89,7 @@ def test_expense_history_filters_by_category(
         Expense(
             name="Food",
             quantity=Money.from_pence(1000),
-            category=Category.GROCERIES,
+            category_id=GROCERIES,
             date=date(2026, 6, 10),
         )
     )
@@ -95,10 +97,10 @@ def test_expense_history_filters_by_category(
         Expense(
             name="Shoes",
             quantity=Money.from_pence(9000),
-            category=Category.CLOTHING,
+            category_id=CLOTHING,
             date=date(2026, 6, 15),
         )
     )
-    labels, spend_cumulative = history_service.expense_history(2026, 6, {Category.GROCERIES})
+    labels, spend_cumulative = history_service.expense_history(2026, 6, {GROCERIES})
     assert len(labels) == 6
     assert spend_cumulative[-1] == Money.from_pence(1000)

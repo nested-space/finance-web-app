@@ -14,7 +14,7 @@ from datetime import date, timedelta
 from finance_web_app.core.contracts.errors import ValidationError
 from finance_web_app.domain.calendar_math import add_months, add_years
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import COMMITMENT_CATEGORIES, COMMITMENT_RECURRENCES, Category
+from finance_web_app.domain.records import COMMITMENT_RECURRENCES
 from finance_web_app.domain.recurrence import Recurrence
 
 _LENGTH_UNITS = ("DAYS", "WEEKS", "MONTHS", "YEARS")
@@ -24,7 +24,7 @@ _LENGTH_UNITS = ("DAYS", "WEEKS", "MONTHS", "YEARS")
 class ParsedCommitment:
     name: str
     quantity: Money
-    category: Category
+    category_id: int
     recurrence: Recurrence
     effective_from: date
     effective_stop: date
@@ -40,7 +40,7 @@ def parse_commitment_form(form: Mapping[str, str]) -> ParsedCommitment:
     except ValueError as exc:
         raise ValidationError("quantity", str(exc)) from exc
 
-    category = _parse_subset_category(form.get("category", ""))
+    category_id = _parse_category_id(form.get("category", ""))
     recurrence = _parse_subset_recurrence(form.get("recurrence", ""))
     effective_from = _parse_required_date(form.get("effective_from", ""), "effective_from")
 
@@ -54,24 +54,24 @@ def parse_commitment_form(form: Mapping[str, str]) -> ParsedCommitment:
     return ParsedCommitment(
         name=name,
         quantity=quantity,
-        category=category,
+        category_id=category_id,
         recurrence=recurrence,
         effective_from=effective_from,
         effective_stop=effective_stop,
     )
 
 
-def _parse_subset_category(raw: str) -> Category:
-    code = raw.strip()
-    if not code:
+def _parse_category_id(raw: str) -> int:
+    text = raw.strip()
+    if not text:
         raise ValidationError("category", "is required")
     try:
-        category = Category.from_code(code)
+        value = int(text)
     except ValueError as exc:
-        raise ValidationError("category", str(exc)) from exc
-    if category not in COMMITMENT_CATEGORIES:
-        raise ValidationError("category", f"{code} is not valid for commitments")
-    return category
+        raise ValidationError("category", "must be a category") from exc
+    if value < 1:
+        raise ValidationError("category", "must be a category")
+    return value
 
 
 def _parse_subset_recurrence(raw: str) -> Recurrence:

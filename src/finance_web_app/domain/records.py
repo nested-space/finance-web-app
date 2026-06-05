@@ -1,4 +1,4 @@
-"""Canonical SQLModel records and the fixed category set.
+"""Canonical SQLModel records and the user-managed category table.
 
 These ``table=True`` models are the schema source of truth; Alembic migrations
 are generated from them. Value objects are preserved: ``quantity`` is stored via
@@ -6,18 +6,24 @@ the ``MoneyPence`` type and exposed as ``Money``, and ``effective_from`` /
 ``effective_stop`` are exposed together as an ``EffectivePeriod`` through the
 ``period`` property -- so the single ``covers_month`` predicate is unchanged.
 
+``Category`` is a user-managed table (one shared list across budgets, budget
+items, expenses, and commitments). Records reference it by ``category_id``; the
+category *name* lives in the row, so there is no enum and no per-resource CHECK
+of allowed codes -- the foreign key enforces validity instead. Spending
+classification is two-level: ``Category`` carries the budget amount (via
+``Budget``), ``BudgetItem`` is a named label under a category that carries no
+amount, and an ``Expense`` is tagged with a category and an optional budget item.
+
 CHECK constraints mirror the integrity the previous hand-written ``schema.sql``
-enforced; SQLAlchemy's ``Enum`` does not emit one by default
-(``create_constraint`` is ``False``), so the category CHECK is declared here.
+enforced; the recurrence CHECKs stay (recurrence is still an enum).
 """
 
-# NB: no ``from __future__ import annotations`` here — SQLModel resolves
+# NB: no ``from __future__ import annotations`` here -- SQLModel resolves
 # ``Relationship`` targets from real (non-stringified) annotations, so this file
 # evaluates annotations eagerly and uses explicit string forward refs instead.
 
 import datetime as dt
 from datetime import UTC, date, datetime
-from enum import Enum
 
 from sqlalchemy import CheckConstraint, Column, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
@@ -26,41 +32,8 @@ from finance_web_app.domain.effective_period import EffectivePeriod
 from finance_web_app.domain.money import Money, MoneyPence
 from finance_web_app.domain.recurrence import Recurrence
 
-_CATEGORY_CODES = (
-    "'OCCASIONAL', 'GROCERIES', 'CLOTHING', 'ENTERTAINMENT', 'PETROL', 'KIDS', 'CHRISTMAS'"
-)
-
-
-class Category(Enum):
-    """Expense/budget categories. The member name is the persisted code."""
-
-    OCCASIONAL = "OCCASIONAL"
-    GROCERIES = "GROCERIES"
-    CLOTHING = "CLOTHING"
-    ENTERTAINMENT = "ENTERTAINMENT"
-    PETROL = "PETROL"
-    KIDS = "KIDS"
-    CHRISTMAS = "CHRISTMAS"
-
-    @classmethod
-    def from_code(cls, code: str) -> "Category":
-        """Resolve a stored code to a ``Category``, raising ``ValueError`` if unknown."""
-        try:
-            return cls[code]
-        except KeyError as exc:
-            raise ValueError(f"unknown category: {code!r}") from exc
-
-
-# Commitments use a subset of categories and recurrences. These tuples are the
-# single source for the form choices, form validation, and the table CHECK
-# strings below, so the allowed sets can never drift apart.
-COMMITMENT_CATEGORIES: tuple[Category, ...] = (
-    Category.OCCASIONAL,
-    Category.GROCERIES,
-    Category.KIDS,
-    Category.ENTERTAINMENT,
-    Category.CLOTHING,
-)
+# Recurrence stays an enum, so its CHECK sets are still declared from the single
+# source. Commitments use a subset (no QUARTERLY); income may use every pattern.
 COMMITMENT_RECURRENCES: tuple[Recurrence, ...] = (
     Recurrence.DAILY,
     Recurrence.WEEKLY,
@@ -68,11 +41,19 @@ COMMITMENT_RECURRENCES: tuple[Recurrence, ...] = (
     Recurrence.ANNUAL,
     Recurrence.ONCE_ONLY,
 )
-_COMMITMENT_CATEGORY_CODES = ", ".join(f"'{c.name}'" for c in COMMITMENT_CATEGORIES)
 _COMMITMENT_RECURRENCE_CODES = ", ".join(f"'{r.name}'" for r in COMMITMENT_RECURRENCES)
-
-# Income may use every recurrence (including QUARTERLY).
 _INCOME_RECURRENCE_CODES = ", ".join(f"'{r.name}'" for r in Recurrence)
+
+
+class Category(SQLModel, table=True):
+    """A user-managed spending category, shared by every resource that classifies."""
+
+    __tablename__ = "category"
+    __table_args__ = (CheckConstraint("length(name) > 0", name="category_name_nonempty"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(unique=True)
+    created: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Budget(SQLModel, table=True):
@@ -81,9 +62,7 @@ class Budget(SQLModel, table=True):
     __tablename__ = "budget"
     model_config = {"arbitrary_types_allowed": True}
     __table_args__ = (
-        CheckConstraint("length(name) > 0", name="budget_name_nonempty"),
         CheckConstraint("quantity >= 0", name="budget_quantity_nonneg"),
-        CheckConstraint(f"category IN ({_CATEGORY_CODES})", name="budget_category_valid"),
         CheckConstraint(
             "effective_stop IS NULL OR effective_stop >= effective_from",
             name="budget_effective_range",
@@ -91,9 +70,8 @@ class Budget(SQLModel, table=True):
     )
 
     id: int | None = Field(default=None, primary_key=True)
-    name: str
     quantity: Money = Field(sa_column=Column(MoneyPence, nullable=False))
-    category: Category
+    category_id: int = Field(foreign_key="category.id")
     effective_from: date = Field(default_factory=date.today)
     effective_stop: date | None = Field(default=None)
     created: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -103,21 +81,35 @@ class Budget(SQLModel, table=True):
         return EffectivePeriod(from_date=self.effective_from, stop_date=self.effective_stop)
 
 
+class BudgetItem(SQLModel, table=True):
+    """A named classification under a category; carries no budget amount of its own."""
+
+    __tablename__ = "budget_item"
+    __table_args__ = (CheckConstraint("length(name) > 0", name="budget_item_name_nonempty"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    category_id: int = Field(foreign_key="category.id")
+    created: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
 class Expense(SQLModel, table=True):
-    """A one-off spend with an explicit date and a fixed-set category."""
+    """A one-off spend with an explicit date, a category, and an optional budget item."""
 
     __tablename__ = "expense"
     model_config = {"arbitrary_types_allowed": True}
     __table_args__ = (
         CheckConstraint("length(name) > 0", name="expense_name_nonempty"),
         CheckConstraint("quantity >= 0", name="expense_quantity_nonneg"),
-        CheckConstraint(f"category IN ({_CATEGORY_CODES})", name="expense_category_valid"),
     )
 
     id: int | None = Field(default=None, primary_key=True)
     name: str
     quantity: Money = Field(sa_column=Column(MoneyPence, nullable=False))
-    category: Category
+    category_id: int = Field(foreign_key="category.id")
+    budget_item_id: int | None = Field(
+        default=None, foreign_key="budget_item.id", ondelete="SET NULL"
+    )
     # Annotated as ``dt.date`` (not bare ``date``) because a field named ``date``
     # would shadow the type name and break Pydantic's annotation resolution.
     date: dt.date = Field(default_factory=dt.date.today)
@@ -138,9 +130,6 @@ class Commitment(SQLModel, table=True):
         CheckConstraint("length(name) > 0", name="commitment_name_nonempty"),
         CheckConstraint("quantity >= 0", name="commitment_quantity_nonneg"),
         CheckConstraint(
-            f"category IN ({_COMMITMENT_CATEGORY_CODES})", name="commitment_category_valid"
-        ),
-        CheckConstraint(
             f"recurrence IN ({_COMMITMENT_RECURRENCE_CODES})", name="commitment_recurrence_valid"
         ),
         CheckConstraint("effective_stop >= effective_from", name="commitment_effective_range"),
@@ -149,7 +138,7 @@ class Commitment(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
     quantity: Money = Field(sa_column=Column(MoneyPence, nullable=False))
-    category: Category
+    category_id: int = Field(foreign_key="category.id")
     recurrence: Recurrence
     effective_from: date = Field(default_factory=date.today)
     effective_stop: date

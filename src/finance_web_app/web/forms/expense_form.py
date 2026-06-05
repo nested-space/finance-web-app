@@ -8,14 +8,14 @@ from datetime import date
 
 from finance_web_app.core.contracts.errors import ValidationError
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import Category
 
 
 @dataclass(frozen=True)
 class ParsedExpense:
     name: str
     quantity: Money
-    category: Category
+    category_id: int
+    budget_item_id: int | None
     date: date
     description: str | None
 
@@ -30,27 +30,45 @@ def parse_expense_form(form: Mapping[str, str]) -> ParsedExpense:
     except ValueError as exc:
         raise ValidationError("quantity", str(exc)) from exc
 
-    category = _parse_category(form.get("category", ""))
+    category_id = _parse_category_id(form.get("category", ""))
+    budget_item_id = _parse_optional_budget_item_id(form.get("budget_item", ""))
     incurred = _parse_required_date(form.get("date", ""), "date")
     description = form.get("description", "").strip() or None
 
     return ParsedExpense(
         name=name,
         quantity=quantity,
-        category=category,
+        category_id=category_id,
+        budget_item_id=budget_item_id,
         date=incurred,
         description=description,
     )
 
 
-def _parse_category(raw: str) -> Category:
-    code = raw.strip()
-    if not code:
+def _parse_category_id(raw: str) -> int:
+    text = raw.strip()
+    if not text:
         raise ValidationError("category", "is required")
     try:
-        return Category.from_code(code)
+        value = int(text)
     except ValueError as exc:
-        raise ValidationError("category", str(exc)) from exc
+        raise ValidationError("category", "must be a category") from exc
+    if value < 1:
+        raise ValidationError("category", "must be a category")
+    return value
+
+
+def _parse_optional_budget_item_id(raw: str) -> int | None:
+    text = raw.strip()
+    if not text:
+        return None
+    try:
+        value = int(text)
+    except ValueError as exc:
+        raise ValidationError("budget_item", "must be a budget item") from exc
+    if value < 1:
+        raise ValidationError("budget_item", "must be a budget item")
+    return value
 
 
 def _parse_required_date(raw: str, field: str) -> date:

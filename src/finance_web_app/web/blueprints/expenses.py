@@ -13,7 +13,9 @@ from flask.typing import ResponseReturnValue
 
 from finance_web_app.core.contracts.errors import ValidationError
 from finance_web_app.core.runtime.container import (
+    get_budget_item_service,
     get_budget_service,
+    get_category_service,
     get_expense_service,
     get_history_service,
 )
@@ -30,7 +32,12 @@ bp = Blueprint("expenses", __name__, url_prefix="/finance/expenses")
 def _current_month_context() -> dict[str, object]:
     today = date.today()
     expense_service = get_expense_service()
-    context = expenses_page_context(expense_service.list_effective(today.year, today.month))
+    categories = get_category_service().list_all()
+    context = expenses_page_context(
+        expense_service.list_effective(today.year, today.month),
+        categories,
+        get_budget_item_service().list_all(),
+    )
     curve = expenses_curve_payload(
         expense_service.cumulative_spend(today.year, today.month, None),
         get_budget_service().cumulative_allocation(today.year, today.month, None),
@@ -41,6 +48,7 @@ def _current_month_context() -> dict[str, object]:
         curve,
         expense_service.totals_by_category(today.year, today.month),
         get_history_service().expense_history(today.year, today.month),
+        categories,
     )
     return context
 
@@ -57,7 +65,8 @@ def create_expense() -> ResponseReturnValue:
         get_expense_service().create(
             name=parsed.name,
             quantity=parsed.quantity,
-            category=parsed.category,
+            category_id=parsed.category_id,
+            budget_item_id=parsed.budget_item_id,
             date=parsed.date,
             description=parsed.description,
         )

@@ -1,4 +1,8 @@
-"""Integration tests for the commitments routes via the Flask test client."""
+"""Integration tests for the commitments routes via the Flask test client.
+
+Categories are seeded by the migration (Entertainment id 4, Kids id 6); the
+commitment form posts a category id and may use any category.
+"""
 
 from __future__ import annotations
 
@@ -7,12 +11,15 @@ from flask.testing import FlaskClient
 
 pytestmark = pytest.mark.integration
 
+ENTERTAINMENT = "4"
+KIDS = "6"
+
 
 def _valid() -> dict[str, str]:
     return {
         "name": "Netflix",
         "quantity": "9.99",
-        "category": "ENTERTAINMENT",
+        "category": ENTERTAINMENT,
         "recurrence": "MONTHLY",
         "effective_from": "2026-01-15",
         "length": "6",
@@ -39,7 +46,7 @@ def test_once_only_creates_without_length(flask_client: FlaskClient) -> None:
         data={
             "name": "Setup",
             "quantity": "50",
-            "category": "KIDS",
+            "category": KIDS,
             "recurrence": "ONCE_ONLY",
             "effective_from": "2026-03-15",
         },
@@ -53,7 +60,7 @@ def test_delete_removes(flask_client: FlaskClient) -> None:
     assert b"No commitments yet" in flask_client.get("/finance/commitments").data
 
 
-def test_category_outside_subset_returns_400(flask_client: FlaskClient) -> None:
-    resp = flask_client.post("/finance/commitments", data=_valid() | {"category": "PETROL"})
+def test_unknown_category_returns_400(flask_client: FlaskClient) -> None:
+    resp = flask_client.post("/finance/commitments", data=_valid() | {"category": "999"})
     assert resp.status_code == 400
     assert b"alert-danger" in resp.data

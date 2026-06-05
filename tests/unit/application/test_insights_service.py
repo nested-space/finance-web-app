@@ -13,10 +13,14 @@ from finance_web_app.core.contracts.commitment_repository import CommitmentRepos
 from finance_web_app.core.contracts.expense_repository import ExpenseRepository
 from finance_web_app.core.contracts.income_repository import IncomeRepository
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import Budget, Category, Commitment, Expense, Income
+from finance_web_app.domain.records import Budget, Commitment, Expense, Income
 from finance_web_app.domain.recurrence import Recurrence
 
 pytestmark = pytest.mark.unit
+
+GROCERIES = 2  # seeded category id (see conftest SEED_CATEGORY_IDS)
+CLOTHING = 3
+ENTERTAINMENT = 4
 
 
 def test_insights_for_a_seeded_month(
@@ -38,7 +42,7 @@ def test_insights_for_a_seeded_month(
         Commitment(
             name="Gym",
             quantity=Money.from_pence(1000),
-            category=Category.ENTERTAINMENT,
+            category_id=ENTERTAINMENT,
             recurrence=Recurrence.DAILY,
             effective_from=date(2026, 6, 1),
             effective_stop=date(2026, 6, 3),
@@ -48,7 +52,7 @@ def test_insights_for_a_seeded_month(
         Expense(
             name="Shoes",
             quantity=Money.from_pence(5000),
-            category=Category.CLOTHING,
+            category_id=CLOTHING,
             date=date(2026, 6, 10),
         )
     )
@@ -56,15 +60,14 @@ def test_insights_for_a_seeded_month(
         Expense(
             name="Food",
             quantity=Money.from_pence(20000),
-            category=Category.GROCERIES,
+            category_id=GROCERIES,
             date=date(2026, 6, 5),
         )
     )
     fake_budget_repository.create(
         Budget(
-            name="Groceries cap",
             quantity=Money.from_pence(10000),
-            category=Category.GROCERIES,
+            category_id=GROCERIES,
             effective_from=date(2026, 6, 1),
         )
     )
@@ -76,7 +79,7 @@ def test_insights_for_a_seeded_month(
     assert insights.net == Decimal("2220.00")
     assert insights.closing_balance == Decimal("2220.00")
     assert insights.largest_expense == ("Food", Money.from_pence(20000))
-    assert insights.over_budget == [Category.GROCERIES]
+    assert insights.over_budget == ["Groceries"]
 
 
 def test_empty_month_has_no_largest_expense_and_zero_net(

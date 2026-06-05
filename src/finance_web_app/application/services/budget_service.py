@@ -1,8 +1,10 @@
 """Budget use cases.
 
-Invoked directly by the budgets blueprint. Depends only on the repository
-Protocol and domain types -- never on a concrete repository or on ``web``
-(``docs/ARCHITECTURE.md`` -> "Layer map").
+Invoked directly by the budgets blueprint. A budget is a per-category monthly
+cap over an effective date range; the category carries the amount (budgets no
+longer have a name). Per-category aggregates are keyed by ``category_id``; the
+rendering layer resolves ids to names. Depends only on the repository Protocols
+and domain types -- never on a concrete repository or on ``web``.
 """
 
 from __future__ import annotations
@@ -10,18 +12,23 @@ from __future__ import annotations
 from calendar import monthrange
 
 from finance_web_app.core.contracts.budget_repository import BudgetRepository
-from finance_web_app.core.contracts.errors import ValidationError
+from finance_web_app.core.contracts.category_repository import CategoryRepository
+from finance_web_app.core.contracts.errors import NotFoundError, ValidationError
 from finance_web_app.domain.effective_period import EffectivePeriod
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import Budget, Category
+from finance_web_app.domain.records import Budget
 
 
 class BudgetService:
-    def __init__(self, budgets: BudgetRepository) -> None:
+    def __init__(self, budgets: BudgetRepository, categories: CategoryRepository) -> None:
         self._budgets = budgets
+        self._categories = categories
 
     def list_all(self) -> list[Budget]:
         return self._budgets.list_all()
+
+    def get(self, budget_id: int) -> Budget:
+        return self._budgets.get(budget_id)
 
     def list_effective(self, year: int, month: int) -> list[Budget]:
         return self._budgets.list_effective(year, month)
@@ -32,17 +39,17 @@ class BudgetService:
             sum(b.quantity.pence() for b in self._budgets.list_effective(year, month))
         )
 
-    def totals_by_category(self, year: int, month: int) -> dict[Category, Money]:
-        """Sum the month's budget caps per category (for the breakdown pie)."""
-        totals: dict[Category, int] = {}
+    def totals_by_category(self, year: int, month: int) -> dict[int, Money]:
+        """Sum the month's budget caps per category id (for the breakdown pie)."""
+        totals: dict[int, int] = {}
         for budget in self._budgets.list_effective(year, month):
-            totals[budget.category] = totals.get(budget.category, 0) + budget.quantity.pence()
-        return {category: Money.from_pence(pence) for category, pence in totals.items()}
+            totals[budget.category_id] = totals.get(budget.category_id, 0) + budget.quantity.pence()
+        return {category_id: Money.from_pence(pence) for category_id, pence in totals.items()}
 
     def cumulative_allocation(
-        self, year: int, month: int, categories: set[Category] | None = None
+        self, year: int, month: int, categories: set[int] | None = None
     ) -> list[Money]:
-        """Straight-line per-day cumulative budget for the selected categories.
+        """Straight-line per-day cumulative budget for the selected category ids.
 
         The total cap is prorated evenly across the month (exact pence) and
         accumulated -- the budget reference line on the expenses spend curve.
@@ -51,8 +58,8 @@ class BudgetService:
         caps = self.totals_by_category(year, month)
         total_pence = sum(
             money.pence()
-            for category, money in caps.items()
-            if categories is None or category in categories
+            for category_id, money in caps.items()
+            if categories is None or category_id in categories
         )
         running = 0
         cumulative: list[Money] = []
@@ -64,17 +71,17 @@ class BudgetService:
     def create(
         self,
         *,
-        name: str,
         quantity: Money,
-        category: Category,
+        category_id: int,
         period: EffectivePeriod,
     ) -> Budget:
-        if not name:
-            raise ValidationError("name", "must be non-empty")
+        try:
+            self._categories.get(category_id)
+        except NotFoundError:
+            raise ValidationError("category", "does not exist") from None
         record = Budget(
-            name=name,
             quantity=quantity,
-            category=category,
+            category_id=category_id,
             effective_from=period.from_date,
             effective_stop=period.stop_date,
         )

@@ -10,6 +10,10 @@ from flask.testing import FlaskClient
 pytestmark = pytest.mark.integration
 
 
+GROCERIES = "2"  # seeded starter category id
+CLOTHING = "3"
+
+
 def _seed_month(client: FlaskClient) -> None:
     client.post(
         "/finance/income",
@@ -23,9 +27,8 @@ def _seed_month(client: FlaskClient) -> None:
     client.post(
         "/finance/budgets",
         data={
-            "name": "Food",
             "quantity": "200",
-            "category": "GROCERIES",
+            "category": GROCERIES,
             "effective_from": "2026-06-01",
         },
     )
@@ -90,7 +93,7 @@ def test_api_expenses_curve_and_filter(flask_client: FlaskClient) -> None:
     _seed_month(flask_client)  # adds a GROCERIES budget of £200
     flask_client.post(
         "/finance/expenses",
-        data={"name": "Food", "quantity": "50", "category": "GROCERIES", "date": "2026-06-05"},
+        data={"name": "Food", "quantity": "50", "category": GROCERIES, "date": "2026-06-05"},
     )
     resp = flask_client.get("/finance/api/expenses/2026/6")
     assert resp.status_code == 200
@@ -101,7 +104,7 @@ def test_api_expenses_curve_and_filter(flask_client: FlaskClient) -> None:
     assert data["current_month"]["budget_cumulative"][-1] == 200.0
 
     # Filter to a category with no spend -> flat zero spend line.
-    filtered = flask_client.get("/finance/api/expenses/2026/6?category=CLOTHING").get_json()
+    filtered = flask_client.get(f"/finance/api/expenses/2026/6?category={CLOTHING}").get_json()
     assert filtered["current_month"]["spend_cumulative"][-1] == 0.0
 
 

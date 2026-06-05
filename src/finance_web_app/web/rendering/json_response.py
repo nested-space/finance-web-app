@@ -1,9 +1,10 @@
 """Dashboard JSON shaping — the single home for the chart/insights payload.
 
 This payload is the public contract embedded in the page and returned by
-``/finance/api/model`` (changing its shape is a MAJOR SemVer bump). ``Money`` and
-``Decimal`` are converted to JSON ``float`` pounds at this presentation boundary;
-all aggregation has already happened in services.
+``/finance/api/model`` (changing its shape is a MAJOR SemVer bump). Per-category
+series are keyed by ``category_id`` in the services; this boundary resolves ids to
+names via the request's category list and emits JSON ``float`` pounds. All
+aggregation has already happened in services.
 """
 
 from __future__ import annotations
@@ -14,7 +15,6 @@ from finance_web_app.application.services.insights_service import MonthlyInsight
 from finance_web_app.domain.money import Money
 from finance_web_app.domain.monthly_model import MonthlyModel
 from finance_web_app.domain.records import Category
-from finance_web_app.web.rendering.template_context import CATEGORY_LABELS
 
 
 def _pounds(value: Money | Decimal) -> float:
@@ -27,8 +27,9 @@ def finance_dashboard_payload(
     month: int,
     model: MonthlyModel,
     insights: MonthlyInsights,
-    budget_totals: dict[Category, Money],
-    commitment_totals: dict[Category, Money],
+    budget_totals: dict[int, Money],
+    commitment_totals: dict[int, Money],
+    categories: list[Category],
 ) -> dict[str, object]:
     outgoings = [
         _pounds(commitment.amount + expense.amount)
@@ -45,17 +46,19 @@ def finance_dashboard_payload(
             "income": [_pounds(m) for m in model.income_per_day],
             "outgoings": outgoings,
         },
-        "budget_breakdown": _category_series(budget_totals),
-        "commitments_by_category": _category_series(commitment_totals),
+        "budget_breakdown": _category_series(budget_totals, categories),
+        "commitments_by_category": _category_series(commitment_totals, categories),
         "insights": _insights_payload(insights),
     }
 
 
-def _category_series(totals: dict[Category, Money]) -> dict[str, object]:
-    present = [category for category in Category if category in totals]
+def _category_series(totals: dict[int, Money], categories: list[Category]) -> dict[str, object]:
+    rows = [
+        (c.name, totals[cid]) for c in categories if (cid := c.id) is not None and cid in totals
+    ]
     return {
-        "labels": [CATEGORY_LABELS[category] for category in present],
-        "values": [_pounds(totals[category]) for category in present],
+        "labels": [name for name, _ in rows],
+        "values": [_pounds(value) for _, value in rows],
     }
 
 
@@ -74,34 +77,40 @@ def expenses_charts_payload(
     year: int,
     month: int,
     curve: dict[str, object],
-    breakdown_totals: dict[Category, Money],
+    breakdown_totals: dict[int, Money],
     history: tuple[list[str], list[Money]],
+    categories: list[Category],
 ) -> dict[str, object]:
     labels, spend_cumulative = history
     return {
         "year": year,
         "month": month,
         "current_month": curve,
-        "breakdown": _category_series(breakdown_totals),
+        "breakdown": _category_series(breakdown_totals, categories),
         "history": {"labels": labels, "spend_cumulative": [_pounds(m) for m in spend_cumulative]},
     }
 
 
 def budgets_charts_payload(
-    spend_by_category: dict[Category, Money],
-    cap_by_category: dict[Category, Money],
+    spend_by_category: dict[int, Money],
+    cap_by_category: dict[int, Money],
     history: tuple[list[str], list[Money], list[Money]],
+    categories: list[Category],
 ) -> dict[str, object]:
     zero = Money.from_pence(0)
-    categories = [c for c in Category if c in cap_by_category or c in spend_by_category]
+    rows = [
+        (c.name, cid)
+        for c in categories
+        if (cid := c.id) is not None and (cid in cap_by_category or cid in spend_by_category)
+    ]
     labels, budget_cumulative, spend_cumulative = history
     return {
         "spend_vs_budget": {
-            "labels": [CATEGORY_LABELS[c] for c in categories],
-            "spend": [_pounds(spend_by_category.get(c, zero)) for c in categories],
-            "budget": [_pounds(cap_by_category.get(c, zero)) for c in categories],
+            "labels": [name for name, _ in rows],
+            "spend": [_pounds(spend_by_category.get(cid, zero)) for _, cid in rows],
+            "budget": [_pounds(cap_by_category.get(cid, zero)) for _, cid in rows],
         },
-        "breakdown": _category_series(cap_by_category),
+        "breakdown": _category_series(cap_by_category, categories),
         "history": {
             "labels": labels,
             "budget_cumulative": [_pounds(m) for m in budget_cumulative],
@@ -120,5 +129,5 @@ def _insights_payload(insights: MonthlyInsights) -> dict[str, object]:
         "largest_expense": (
             {"name": largest[0], "amount": _pounds(largest[1])} if largest is not None else None
         ),
-        "over_budget": [CATEGORY_LABELS[category] for category in insights.over_budget],
+        "over_budget": list(insights.over_budget),
     }

@@ -1,4 +1,4 @@
-"""Unit tests for BudgetService against a fake repository."""
+"""Unit tests for BudgetService against fake repositories."""
 
 from __future__ import annotations
 
@@ -10,21 +10,23 @@ from finance_web_app.application.services.budget_service import BudgetService
 from finance_web_app.core.contracts.errors import NotFoundError, ValidationError
 from finance_web_app.domain.effective_period import EffectivePeriod
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import Budget, Category
+from finance_web_app.domain.records import Budget
 
 pytestmark = pytest.mark.unit
+
+GROCERIES = 2  # seeded category id (see conftest SEED_CATEGORY_IDS)
+CLOTHING = 3
 
 
 def _create(
     service: BudgetService,
     *,
-    name: str = "Groceries",
+    category_id: int = GROCERIES,
     from_date: date = date(2026, 6, 1),
 ) -> Budget:
     return service.create(
-        name=name,
         quantity=Money.from_pence(20000),
-        category=Category.GROCERIES,
+        category_id=category_id,
         period=EffectivePeriod(from_date=from_date),
     )
 
@@ -34,15 +36,16 @@ def test_create_assigns_id(budget_service: BudgetService) -> None:
 
 
 def test_list_all_returns_created_records(budget_service: BudgetService) -> None:
-    _create(budget_service, name="A")
-    _create(budget_service, name="B")
-    assert [b.name for b in budget_service.list_all()] == ["A", "B"]
+    _create(budget_service, category_id=GROCERIES)
+    _create(budget_service, category_id=CLOTHING)
+    assert [b.category_id for b in budget_service.list_all()] == [GROCERIES, CLOTHING]
 
 
 def test_list_effective_filters_by_month(budget_service: BudgetService) -> None:
-    _create(budget_service, name="June", from_date=date(2026, 6, 1))
-    _create(budget_service, name="July", from_date=date(2026, 7, 1))
-    assert [b.name for b in budget_service.list_effective(2026, 6)] == ["June"]
+    _create(budget_service, from_date=date(2026, 6, 1))
+    _create(budget_service, from_date=date(2026, 7, 1))
+    effective = budget_service.list_effective(2026, 6)
+    assert [b.period.from_date for b in effective] == [date(2026, 6, 1)]
 
 
 def test_delete_removes_record(budget_service: BudgetService) -> None:
@@ -57,21 +60,21 @@ def test_delete_missing_raises_not_found(budget_service: BudgetService) -> None:
         budget_service.delete(999)
 
 
-def test_create_empty_name_raises_validation_error(budget_service: BudgetService) -> None:
+def test_create_unknown_category_raises_validation_error(budget_service: BudgetService) -> None:
     with pytest.raises(ValidationError):
-        _create(budget_service, name="")
+        _create(budget_service, category_id=999)
 
 
 def test_totals_by_category_sums_per_category(budget_service: BudgetService) -> None:
-    _create(budget_service, name="A")  # GROCERIES, £200
-    _create(budget_service, name="B")  # GROCERIES, £200
+    _create(budget_service, category_id=GROCERIES)  # £200
+    _create(budget_service, category_id=GROCERIES)  # £200
     totals = budget_service.totals_by_category(2026, 6)
-    assert totals == {Category.GROCERIES: Money.from_pence(40000)}
+    assert totals == {GROCERIES: Money.from_pence(40000)}
 
 
 def test_total_sums_caps(budget_service: BudgetService) -> None:
-    _create(budget_service, name="A")  # £200
-    _create(budget_service, name="B")  # £200
+    _create(budget_service)  # £200
+    _create(budget_service)  # £200
     assert budget_service.total(2026, 6) == Money.from_pence(40000)
 
 
@@ -81,6 +84,4 @@ def test_cumulative_allocation_straight_line(budget_service: BudgetService) -> N
     assert len(allocation) == 30
     assert allocation[-1] == Money.from_pence(20000)  # ends at the total cap
     # A category with no budget contributes nothing.
-    assert budget_service.cumulative_allocation(2026, 6, {Category.CLOTHING})[
-        -1
-    ] == Money.from_pence(0)
+    assert budget_service.cumulative_allocation(2026, 6, {CLOTHING})[-1] == Money.from_pence(0)

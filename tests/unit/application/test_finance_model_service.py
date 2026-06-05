@@ -15,7 +15,6 @@ from finance_web_app.core.contracts.income_repository import IncomeRepository
 from finance_web_app.domain.money import Money
 from finance_web_app.domain.records import (
     Budget,
-    Category,
     Commitment,
     Expense,
     Income,
@@ -24,6 +23,11 @@ from finance_web_app.domain.records import (
 from finance_web_app.domain.recurrence import Recurrence
 
 pytestmark = pytest.mark.unit
+
+GROCERIES = 2  # seeded category id (see conftest SEED_CATEGORY_IDS)
+CLOTHING = 3
+ENTERTAINMENT = 4
+KIDS = 6
 
 
 def test_model_for_june_combines_all_resources(
@@ -49,7 +53,7 @@ def test_model_for_june_combines_all_resources(
         Commitment(
             name="Gym",
             quantity=Money.from_pence(1000),
-            category=Category.ENTERTAINMENT,
+            category_id=ENTERTAINMENT,
             recurrence=Recurrence.DAILY,
             effective_from=date(2026, 6, 1),
             effective_stop=date(2026, 6, 3),
@@ -59,15 +63,14 @@ def test_model_for_june_combines_all_resources(
         Expense(
             name="Shoes",
             quantity=Money.from_pence(5000),
-            category=Category.CLOTHING,
+            category_id=CLOTHING,
             date=date(2026, 6, 10),
         )
     )
     fake_budget_repository.create(
         Budget(
-            name="Food",
             quantity=Money.from_pence(30000),
-            category=Category.GROCERIES,
+            category_id=GROCERIES,
             effective_from=date(2026, 6, 1),
         )
     )
@@ -97,7 +100,7 @@ def test_record_starting_mid_month_does_not_contribute_earlier(
         Commitment(
             name="Late",
             quantity=Money.from_pence(500),
-            category=Category.KIDS,
+            category_id=KIDS,
             recurrence=Recurrence.DAILY,
             effective_from=date(2026, 6, 20),
             effective_stop=date(2026, 6, 30),

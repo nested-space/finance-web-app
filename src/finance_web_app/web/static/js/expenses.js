@@ -1,3 +1,30 @@
+// Add-expense form: show only the budget items belonging to the chosen category
+// (server-side validation still enforces the relationship).
+(function () {
+  "use strict";
+
+  var category = document.getElementById("expense-category");
+  var items = document.getElementById("expense-budget-item");
+  if (!category || !items) {
+    return;
+  }
+  function sync() {
+    var selected = category.value;
+    Array.prototype.forEach.call(items.options, function (option) {
+      if (!option.value) {
+        return;
+      }
+      var match = option.getAttribute("data-category") === selected;
+      option.hidden = !match;
+      if (!match && option.selected) {
+        items.value = "";
+      }
+    });
+  }
+  category.addEventListener("change", sync);
+  sync();
+})();
+
 // Expenses page charts: a cumulative spend-vs-budget curve (filterable by
 // category via /finance/api/expenses), a 6-month cumulative spend line, and a
 // spend breakdown pie. Reads the embedded payload; no aggregation here.

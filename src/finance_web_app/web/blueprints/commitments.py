@@ -10,7 +10,7 @@ from flask import Blueprint, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
 from finance_web_app.core.contracts.errors import ValidationError
-from finance_web_app.core.runtime.container import get_commitment_service
+from finance_web_app.core.runtime.container import get_category_service, get_commitment_service
 from finance_web_app.web.forms.commitment_form import parse_commitment_form
 from finance_web_app.web.rendering.template_context import commitments_page_context
 
@@ -19,7 +19,9 @@ bp = Blueprint("commitments", __name__, url_prefix="/finance/commitments")
 
 @bp.get("")
 def list_commitments() -> str:
-    context = commitments_page_context(get_commitment_service().list_all())
+    context = commitments_page_context(
+        get_commitment_service().list_all(), get_category_service().list_all()
+    )
     return render_template("commitments.html", **context)
 
 
@@ -31,13 +33,13 @@ def create_commitment() -> ResponseReturnValue:
         service.create(
             name=parsed.name,
             quantity=parsed.quantity,
-            category=parsed.category,
+            category_id=parsed.category_id,
             recurrence=parsed.recurrence,
             effective_from=parsed.effective_from,
             effective_stop=parsed.effective_stop,
         )
     except ValidationError as exc:
-        context = commitments_page_context(service.list_all())
+        context = commitments_page_context(service.list_all(), get_category_service().list_all())
         return render_template(
             "commitments.html", error=f"{exc.field}: {exc.reason}", **context
         ), 400

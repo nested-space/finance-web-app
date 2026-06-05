@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Categories — Personal Finances{% endblock %}
+
+{% block content %}
+  <section class="panel panel--tint">
+    <h1>Categories</h1>
+    <p class="lead">Manage the categories that budgets, budget items, expenses, and commitments share.</p>
+    <button class="btn btn-primary" type="button" data-open-modal="category-modal">Add a category</button>
+  </section>
+
+  <dialog class="modal" id="category-modal"{% if error %} data-open-on-load{% endif %}>
+    <div class="modal-body">
+      <div class="modal-head">
+        <h2 class="panel-title">Add a category</h2>
+        <button class="btn-icon" type="button" data-close-modal aria-label="Close">✕</button>
+      </div>
+      {% if error %}
+        <div class="alert alert-danger" role="alert">{{ error }}</div>
+      {% endif %}
+      <form class="form" method="post" action="{{ url_for('categories.create_category') }}">
+        <label>
+          Name
+          <input type="text" name="name" required />
+        </label>
+        <button class="btn btn-primary" type="submit">Add category</button>
+      </form>
+    </div>
+  </dialog>
+
+  <section class="panel">
+    <h2 class="panel-title">Current categories</h2>
+    {% if categories %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for category in categories %}
+            <tr>
+              <td>{{ category.name }}</td>
+              <td>
+                <form
+                  method="post"
+                  action="{{ url_for('categories.delete_category', category_id=category.id) }}"
+                >
+                  <button class="btn-icon" type="submit" title="Delete" aria-label="Delete">
+                    🗑
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No categories yet. Use “Add a category” to create your first one.</p>
+    {% endif %}
+  </section>
+{% endblock %}

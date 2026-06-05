@@ -1,4 +1,8 @@
-"""Integration tests for the expenses routes via the Flask test client."""
+"""Integration tests for the expenses routes via the Flask test client.
+
+Categories are seeded by the migration (Groceries id 2, Clothing id 3); the
+expense form posts a category id.
+"""
 
 from __future__ import annotations
 
@@ -10,13 +14,16 @@ from flask.testing import FlaskClient
 
 pytestmark = pytest.mark.integration
 
+GROCERIES = "2"
+CLOTHING = "3"
+
 
 def _valid() -> dict[str, str]:
     return {
         "name": "Lunch",
         "quantity": "5.50",
         "date": date.today().isoformat(),
-        "category": "GROCERIES",
+        "category": GROCERIES,
         "description": "sandwich",
     }
 
@@ -32,6 +39,19 @@ def test_create_redirects_and_appears(flask_client: FlaskClient) -> None:
     listing = flask_client.get("/finance/expenses")
     assert b"Lunch" in listing.data
     assert b"5.50" in listing.data
+
+
+def test_create_with_budget_item_tags_the_expense(flask_client: FlaskClient) -> None:
+    # Budget items are managed from a budget's detail page, so a Groceries budget
+    # must exist before an item can be created under that category.
+    flask_client.post(
+        "/finance/budgets",
+        data={"quantity": "400", "category": GROCERIES, "effective_from": "2026-06-01"},
+    )
+    flask_client.post("/finance/budgets/1/items", data={"name": "Tesco"})
+    resp = flask_client.post("/finance/expenses", data=_valid() | {"budget_item": "1"})
+    assert resp.status_code == 302
+    assert b"Tesco" in flask_client.get("/finance/expenses").data
 
 
 def test_delete_removes_row(flask_client: FlaskClient) -> None:
@@ -50,7 +70,7 @@ def test_charts_payload_is_embedded(flask_client: FlaskClient) -> None:
 
 def test_invalid_create_returns_400(flask_client: FlaskClient) -> None:
     resp = flask_client.post(
-        "/finance/expenses", data={"name": "", "quantity": "x", "category": "GROCERIES"}
+        "/finance/expenses", data={"name": "", "quantity": "x", "category": GROCERIES}
     )
     assert resp.status_code == 400
     assert b"alert-danger" in resp.data
@@ -80,7 +100,7 @@ def test_api_expenses_category_filter_excludes_other_categories(flask_client: Fl
             "name": "Bread",
             "quantity": "3.00",
             "date": today.isoformat(),
-            "category": "GROCERIES",
+            "category": GROCERIES,
             "description": "",
         },
     )
@@ -90,12 +110,12 @@ def test_api_expenses_category_filter_excludes_other_categories(flask_client: Fl
             "name": "Shoes",
             "quantity": "50.00",
             "date": today.isoformat(),
-            "category": "CLOTHING",
+            "category": CLOTHING,
             "description": "",
         },
     )
     resp = flask_client.get(
-        f"/finance/api/expenses/{today.year}/{today.month}?category=GROCERIES",
+        f"/finance/api/expenses/{today.year}/{today.month}?category={GROCERIES}",
         headers={"Accept": "application/json"},
     )
     data = json.loads(resp.data)

@@ -76,8 +76,14 @@ Hard boundary rules that span files (a PR violating these fails review):
 - **Recurrence firing derives from the record's own `effective_from`** via `Recurrence.fires_on(when, effective_from)`
   in `domain/recurrence.py`. There are **no `day_of_week`/`day_of_month` columns**. Services call the enum
   method; they never `match` on the enum themselves.
-- **Enum member *names* (`ONCE_ONLY`, …) are what's stored** in the DB and the schema `CHECK` set. Human
-  display text is mapped in `web/rendering`, never persisted.
+- **`Recurrence` enum member *names* (`ONCE_ONLY`, …) are what's stored** in the DB and the schema `CHECK`
+  set. Human display text is mapped in `web/rendering`, never persisted.
+- **Categories are a user-managed table, not an enum** (decision D-012). Budgets, budget items, expenses,
+  and commitments reference `category.id` by foreign key (`category_id`) — there is no `category IN (...)`
+  CHECK, and no per-resource category column. The budget amount lives at the **category** level (a `Budget`
+  has no name); a `BudgetItem` is a named label under a category with no amount; an `Expense` carries an
+  optional `budget_item_id`. Per-category aggregates in services are keyed by `category_id`; only
+  `web/rendering` resolves ids to display names. Deleting a category is blocked while it is in use.
 - **Chart data is computed server-side and embedded** in the page as `<script type="application/json">`,
   not fetched via AJAX. Aggregation happens in services, never in JavaScript. `web/blueprints/api.py`
   exists only for genuine post-paint refetches (the expenses category filter), and returns data already

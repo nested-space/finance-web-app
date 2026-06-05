@@ -12,7 +12,6 @@ from calendar import month_abbr
 from finance_web_app.application.services.budget_service import BudgetService
 from finance_web_app.application.services.expense_service import ExpenseService
 from finance_web_app.domain.money import Money
-from finance_web_app.domain.records import Category
 
 
 def _label(year: int, month: int) -> str:
@@ -45,7 +44,7 @@ class HistoryService:
         return labels, budget_cumulative, spend_cumulative
 
     def expense_history(
-        self, year: int, month: int, categories: set[Category] | None = None
+        self, year: int, month: int, categories: set[int] | None = None
     ) -> tuple[list[str], list[Money]]:
         labels: list[str] = []
         spend_cumulative: list[Money] = []
